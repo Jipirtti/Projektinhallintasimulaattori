@@ -6,7 +6,7 @@ Selaimessa toimiva opetussimulaattori projektin aikataulutukseen, resurssointiin
 
 **Kokeile:** <https://jipirtti.github.io/Projektinhallintasimulaattori/> tai avaa `index.html` suoraan selaimessa. Asennusta tai palvelinta ei tarvita.
 
-**Kieli / Language:** käyttöliittymä on suomeksi ja englanniksi (FI | EN -valitsin tai `?lang=en`). The user interface is available in Finnish and English; switch with the FI | EN toggle or use `?lang=en`.
+**Kieli / Language / Sprache:** käyttöliittymä on suomeksi, englanniksi ja saksaksi. Kieltä vaihdetaan yläpalkin FI | EN | DE -valitsimella lennosta, ja valinta muistetaan selaimessa. Suora linkki: `?lang=en` tai `?lang=de`. Käyttöohje: [suomeksi](https://jipirtti.github.io/Projektinhallintasimulaattori/docs/kayttoohje.html), [englanniksi](https://jipirtti.github.io/Projektinhallintasimulaattori/docs/user-manual.html), [saksaksi](https://jipirtti.github.io/Projektinhallintasimulaattori/docs/bedienungsanleitung.html). The user interface is available in Finnish, English and German (FI | EN | DE toggle, or `?lang=en` / `?lang=de`); [user manual in English](https://jipirtti.github.io/Projektinhallintasimulaattori/docs/user-manual.html). Die Oberfläche ist auf Finnisch, Englisch und Deutsch verfügbar (Umschalter FI | EN | DE oder `?lang=de`); [Bedienungsanleitung auf Deutsch](https://jipirtti.github.io/Projektinhallintasimulaattori/docs/bedienungsanleitung.html).
 
 Tekijä: Juho Pirttilahti, Seinäjoen ammattikorkeakoulu (SEAMK), 2026. Suunnittelu, sisältö ja validointi: Juho Pirttilahti. Ohjelmakoodi toteutettu tekoälyavusteisesti (Claude, Anthropic). Lisenssi: [CC BY 4.0](LICENSE).
 
