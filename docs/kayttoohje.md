@@ -167,6 +167,16 @@ Omat projektit tallentuvat vain siihen selaimeen, jossa ne luotiin. **Vie / tuo*
 4. Robottisolu: toimittaja ilmoittaa 6 pv:n myöhästymisestä. Mitä tapahtuu SPI:lle ennen ja jälkeen perustason lopun? Vertaa SPI(t):hen.
 5. Laadi oma projekti kyselyllä ja vertaa PERT- ja Monte Carlo -todennäköisyyksiä. Miksi ne eroavat?
 
+## Kaavion kopiointi kuvana
+
+Jokaisen kaavion kulmassa on painike **Kopioi kuva**. Se kopioi kaavion leikepöydälle PNG-kuvana, jonka voi liittää suoraan raporttiin, diaan tai viestiin (Ctrl+V).
+
+- Kuva piirretään aina vaalealla taustalla, vaikka simulaattori olisi tummassa teemassa, ja kaksinkertaisella tarkkuudella.
+- Kuvassa ovat kaavion otsikko, kaavio, selite ja lähdemerkintä (simulaattorin nimi, Juho Pirttilahti, SEAMK, CC BY 4.0, verkko-osoite ja päivämäärä).
+- Painike on jokaisen kaavion otsikkorivillä: Gantt-kaavio, myöhästymisen vaikutus, verkkokaavio, resurssien kuormitus, S-käyrä ja Monte Carlo -jakauma.
+- Gantt- ja verkkokaavio kopioituvat kokonaan, myös vierityksen ulkopuolelle jäävä osa.
+- Jos selain ei salli kopiointia leikepöydälle, kuva avautuu ikkunaan. Sieltä sen voi kopioida hiiren oikealla painikkeella (puhelimessa painamalla pitkään) tai tallentaa PNG-tiedostona.
+
 ## Palaute
 
 Yläpalkin **Palaute**-painike avaa lomakkeen, joka tekee valmiiksi täytetyn ilmoituksen simulaattorin GitHub-repoon. Valitse tyyppi: *laskentatulos ei vastaa odotusta*, *virhe* tai *kehitysehdotus*. Nykyinen projekti liitetään JSON-muodossa, jotta tilanne voidaan toistaa täsmälleen. Ilman GitHub-tiliä voi käyttää painikkeita *Kopioi raportti* tai *Lähetä sähköpostilla*.

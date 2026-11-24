@@ -28,6 +28,7 @@ Projektinhallintasimulaattoria kehitetään avoimesti Seinäjoen ammattikorkeako
 | `wFromEx`, `wToDef`, `wCheck`, `drawWizard` | Projektin luonti |
 | `compactState`, `expandState` | Tallennusmuoto (esimerkeille vain muutokset) |
 | `SimPalaute` | Palautekanava (sama moduuli kuin muissa simulaattoreissa; tekstit ja lomakepohja `1-laskenta.yml` annetaan init-kutsussa) |
+| `SimKuva` | Kaavion kopiointi kuvana (sama moduuli kaikissa simulaattoreissa; kaaviot, otsikot, selitteet ja painikkeiden paikat annetaan init-kutsussa) |
 | `window.PmSim` | Testirajapinta |
 
 ### Uusi esimerkkiprojekti
