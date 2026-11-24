@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<!--
+  Projektinhallintasimulaattori – Gantt-kaavio, kriittinen polku, resurssit, ansaittu arvo ja ennusteet
+  Tekijä: Juho Pirttilahti, Seinäjoen ammattikorkeakoulu (SEAMK), 2026.
+  Suunnittelu, sisältö ja validointi: Juho Pirttilahti. Ohjelmakoodi toteutettu tekoälyavusteisesti (Claude, Anthropic).
+  Lisenssi: Creative Commons Nimeä 4.0 Kansainvälinen (CC BY 4.0), https://creativecommons.org/licenses/by/4.0/deed.fi
+  Saat kopioida, jakaa ja muokata ohjelmaa mihin tahansa tarkoitukseen, kunhan mainitset
+  tekijän ja oppilaitoksen, merkitset lisenssin ja kerrot tekemistäsi muutoksista.
+-->
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Projektinhallintasimulaattori</title>
+<meta name="author" content="Juho Pirttilahti, Seinäjoen ammattikorkeakoulu (SEAMK)">
+<meta name="copyright" content="Juho Pirttilahti, Seinäjoen ammattikorkeakoulu (SEAMK), 2026. CC BY 4.0">
+<link rel="license" href="https://creativecommons.org/licenses/by/4.0/deed.fi">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: insinöörin työkalu, sama kuin muissa SEAMK-simulaattoreissa
+   IDEA: projektipäällikön suunnittelutaulu – Gantt, verkkokaavio, kuormitus, S-käyrä
+   PICTURE: Gantt-kaavio täyttää ensimmäisen näkymän; kriittinen polku punaisena
+   COLOUR and TYPE: sisarsimulaattoreiden paletti ja Barlow / Barlow Condensed
+   LAYOUT: yläpalkki, välilehdet, asetukset vasemmalla, näkymä oikealla; kapealla pinottuna */
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#DCE3E9;--paper:#F7F9FA;--grid:#E2E8ED;--grid2:#D3DBE2;--panel:#EDF1F4;--ink:#17212B;--muted:#56636F;
+  --line:#C2CBD3;--acc:#E39B17;--sel:#1E5DBA;--ok:#2E8B57;--warn:#C0392B;--on:#E39B17;
+  --c1:#C2392B;--c2:#1E6FB0;--c3:#2E8B57;--c4:#8A5BD6}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0E1419;--paper:#131A20;--grid:#1A232B;--grid2:#222D36;--panel:#161F26;--ink:#E2E8EE;--muted:#93A0AC;--line:#2A3540;--acc:#F0A82A;--sel:#6FA7FF;--ok:#4CC38A;--warn:#FF6B5B;--on:#F0A82A;--c1:#FF7A6B;--c2:#6FB3F0;--c3:#4CC38A;--c4:#B596FF}}
+:root[data-theme="dark"]{--bg:#0E1419;--paper:#131A20;--grid:#1A232B;--grid2:#222D36;--panel:#161F26;--ink:#E2E8EE;--muted:#93A0AC;--line:#2A3540;--acc:#F0A82A;--sel:#6FA7FF;--ok:#4CC38A;--warn:#FF6B5B;--on:#F0A82A;--c1:#FF7A6B;--c2:#6FB3F0;--c3:#4CC38A;--c4:#B596FF}
+body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.4;-webkit-text-size-adjust:100%}
+button,select,input,textarea{font:inherit;color:inherit}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--sel);outline-offset:1px}
+.app{min-height:100%;display:grid;grid-template-columns:310px minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"bar bar" "tabs tabs" "ctl view"}
+.bar{grid-area:bar;display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:8px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+.brand{display:flex;flex-direction:column;line-height:1.1;margin-right:6px}
+.brand strong{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:24px;font-weight:600}
+.brand span{font-size:13px;color:var(--muted)}
+.grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.langsw{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.langsw button{border:0;background:var(--paper);padding:5px 12px;cursor:pointer;font-size:14px;font-weight:600}
+.langsw button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.btn{background:var(--paper);border:1px solid var(--line);border-radius:7px;padding:6px 12px;cursor:pointer;min-height:34px}
+.btn:hover{border-color:var(--muted)}
+a.btn{display:inline-flex;align-items:center;text-decoration:none;color:var(--ink)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.pri{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn.sm{min-height:28px;padding:2px 9px;font-size:14px}
+select,input[type=number],input[type=text],input[type=date]{background:var(--paper);border:1px solid var(--line);border-radius:7px;padding:5px 8px;min-height:32px}
+.tabs{grid-area:tabs;display:flex;flex-wrap:wrap;gap:4px;padding:6px 14px 0;background:var(--panel);border-bottom:1px solid var(--line)}
+.tabs button{border:1px solid var(--line);border-bottom:0;background:var(--bg);border-radius:8px 8px 0 0;padding:6px 16px;cursor:pointer;font-weight:600}
+.tabs button[aria-selected="true"]{background:var(--paper);position:relative;top:1px}
+.ctl{grid-area:ctl;background:var(--panel);border-right:1px solid var(--line);padding:10px 12px 24px;overflow:auto}
+.ctl h3{font-size:13px;font-weight:600;color:var(--muted);margin:14px 0 6px}
+.ctl h3:first-child{margin-top:2px}
+.fld{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:6px;align-items:center;margin:0 0 6px;font-size:14px}
+.fld select,.fld input[type=text],.fld input[type=number],.fld input[type=date]{width:100%}
+.fld.one{grid-template-columns:minmax(0,1fr)}
+.fld .inp{display:flex;align-items:center;gap:4px}.fld .inp input{min-width:0;flex:1}.fld .inp em{font-style:normal;color:var(--muted);font-size:13px;min-width:22px;flex:none;white-space:nowrap}
+.fld input[type=checkbox]{width:20px;height:20px;justify-self:start}
+.ctl .note,.mnote{font-size:13px;color:var(--muted);margin:4px 0 6px}
+.ctl .note.err{color:var(--warn)}
+.ctl .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.impact{font-size:13.5px;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:6px 9px;margin:6px 0}
+.copy{font-size:11.5px;line-height:1.35;color:var(--muted);margin:18px 0 0;padding-top:10px;border-top:1px solid var(--line)}
+.copy a,.mcopy a{color:inherit}
+.view{grid-area:view;background:var(--paper);padding:10px 12px 18px;overflow:auto;min-width:0}
+.panel{display:none}.panel.on{display:block}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+.full{grid-column:1/-1}
+.card{border:1px solid var(--line);border-radius:10px;background:var(--paper);padding:8px 10px;min-width:0}
+.card h4{margin:0 0 4px;font-size:14px;font-weight:600}
+.chead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px;margin-bottom:4px}
+.chead h4{margin:0}
+.card canvas{width:100%;display:block}
+.scr{overflow:auto;max-width:100%}
+.scr canvas{width:auto}
+.cv240{height:240px}.cv320{height:320px}.cv360{height:360px}
+.res{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+.res td{padding:3px 6px;border-bottom:1px solid var(--grid2);vertical-align:top}
+.res td:first-child{color:var(--muted)}
+.res td:last-child{text-align:right;font-weight:600}
+.res tr.h td{color:var(--ink);font-weight:600;padding-top:9px;border-bottom:1px solid var(--line)}
+.warns div{margin:0 0 6px;padding:6px 10px;border-radius:7px;background:rgba(192,57,43,.1);border:1px solid rgba(192,57,43,.35);font-size:14px}
+.warns div.info{background:rgba(30,93,186,.08);border-color:rgba(30,93,186,.3)}
+.leg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px;color:var(--muted);margin:4px 0 0}
+.leg i{display:inline-block;width:16px;height:4px;border-radius:2px;margin-right:4px;vertical-align:middle}
+.leg i.sw{width:14px;height:10px}
+.leg i.ds{height:0;border-top:2px dashed currentColor;border-radius:0}
+.big{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:22px;font-variant-numeric:tabular-nums}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:8px;margin:0 0 10px}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:var(--panel);min-width:0}
+.kpi small{display:block;font-size:13px;color:var(--muted)}
+.kpi .big{display:block;line-height:1.15;overflow-wrap:anywhere}
+.kpi .big.sm{font-size:18px}
+.kpi .sub{font-size:13px;line-height:1.3}
+.good{color:var(--ok)}.bad{color:var(--warn)}
+.tbl{border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums;width:100%}
+.tbl th{font-weight:600;text-align:left;color:var(--muted);border-bottom:1px solid var(--line);padding:4px 6px;white-space:nowrap;background:var(--paper)}
+.tbl td{padding:3px 6px;border-bottom:1px solid var(--grid2);white-space:nowrap}
+.tbl .r{text-align:right}
+.tbl tr.crit td:first-child{color:var(--c1);font-weight:600}
+.tbl tr.sel td{background:rgba(30,93,186,.12)}
+.tbl tbody tr.ck{cursor:pointer}
+.tbl tfoot td{font-weight:600;border-top:1px solid var(--line)}
+.tbl input{width:78px;min-height:28px;padding:2px 6px}
+.hbar{display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr) 70px;gap:8px;align-items:center;font-size:13.5px;margin:3px 0}
+.hbar .tk{background:var(--grid);border-radius:4px;height:12px;overflow:hidden}
+.hbar .tk i{display:block;height:100%;background:var(--c2)}
+.hbar .tk i.c{background:var(--c1)}
+.hbar .v{text-align:right;font-variant-numeric:tabular-nums}
+.hbar .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.interp{font-size:14px;margin:8px 0 0}
+.interp p{margin:4px 0}
+.ex{border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:0 0 10px;background:var(--paper)}
+.ex h4{margin:0 0 4px;font-size:14px}
+.ex p{margin:4px 0}
+.exrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
+.exrow input{width:170px}
+.exrow em{font-style:normal;color:var(--muted);font-size:13px}
+.fb{font-weight:600}.fb.ok{color:var(--ok)}.fb.no{color:var(--warn)}
+.ex details{margin-top:6px;font-size:14px}
+.ex summary{cursor:pointer;color:var(--sel)}
+.scen{border:1px solid rgba(30,93,186,.3);background:rgba(30,93,186,.07);border-radius:10px;padding:8px 12px;margin:0 0 10px;font-size:14px}
+.scen ul{margin:4px 0 6px 18px;padding:0}
+.modal{position:fixed;inset:0;background:rgba(10,16,22,.5);display:none;align-items:center;justify-content:center;z-index:100;padding:16px}
+.modal.open{display:flex}
+.mbox{background:var(--paper);border-radius:12px;max-width:820px;width:100%;max-height:88vh;overflow:auto;padding:18px 22px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.mbox h2{margin:0 0 8px;font-family:"Barlow Condensed","Arial Narrow",sans-serif}
+.mbox h3{margin:14px 0 4px;font-size:15px}
+.mbox p,.mbox li{margin:5px 0}
+.mbox code{font-size:13px;background:var(--grid);padding:0 4px;border-radius:4px}
+.mrow{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-top:12px}
+.mcopy{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px;margin-top:14px}
+textarea{width:100%;min-height:260px;font-size:13px;font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--paper);border:1px solid var(--line);border-radius:7px;padding:6px}
+
+.mbox.wide{max-width:1180px}
+.wsteps{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 12px}
+.wsteps button{padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--paper);color:var(--muted);font-size:13px;cursor:pointer;min-height:28px}
+.wsteps button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.wq{font-size:18px;font-weight:600;margin:4px 0 2px}
+.wfld{display:grid;grid-template-columns:minmax(0,240px) minmax(0,1fr);gap:8px;align-items:center;margin:9px 0;font-size:15px}
+.wfld input[type=text],.wfld input[type=number],.wfld input[type=date],.wfld select{width:100%;max-width:440px}
+.wfld input[type=checkbox],.radio input{width:20px;height:20px}
+.radio{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:3px 0}
+.radio input[type=number]{width:100px}
+.wtbl td{padding:2px 3px;vertical-align:middle}.wtbl input{width:100%;min-height:30px;padding:3px 6px}
+.wtbl .w-id{width:70px}.wtbl .w-n{min-width:200px}.wtbl .w-num{width:74px}.wtbl .w-pred{min-width:140px}.wtbl .w-res{min-width:160px}.wtbl .w-b{white-space:nowrap}.wtbl .w-fix{width:110px}
+.wtbl .w-b .btn{min-height:28px;padding:1px 8px}
+.werr{margin:6px 0;padding:6px 10px;border-radius:7px;background:rgba(192,57,43,.1);border:1px solid rgba(192,57,43,.35);font-size:14px}
+.werr.info{background:rgba(30,93,186,.08);border-color:rgba(30,93,186,.3)}
+.werr ul{margin:4px 0 0 18px;padding:0}
+.solnote{font-size:13px;color:var(--muted);margin:6px 0 0}
+@media (max-width:600px){.wfld{grid-template-columns:1fr}}
+@media (max-width:980px){.app{grid-template-columns:1fr;grid-template-areas:"bar" "tabs" "ctl" "view"}.ctl{border-right:0;border-bottom:1px solid var(--line)}.g2{grid-template-columns:1fr}}
+@media (max-width:520px){.hbar{grid-template-columns:minmax(0,110px) minmax(0,1fr) 58px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <div class="brand"><strong data-en="Project Management Simulator">Projektinhallintasimulaattori</strong><span>Juho Pirttilahti, SEAMK 2026, CC BY 4.0</span></div>
+    <div class="langsw" role="group" aria-label="Kieli / Language"><button type="button" data-lang="fi" lang="fi">FI</button><button type="button" data-lang="en" lang="en">EN</button></div>
+    <div class="grp">
+      <button class="btn" id="helpBtn" type="button" data-en="Help">Ohje</button>
+      <button class="btn" id="undoBtn" type="button" data-en="Undo">Kumoa</button>
+      <a class="btn" id="manualLink" href="https://jipirtti.github.io/Projektinhallintasimulaattori/docs/kayttoohje.html" target="_blank" rel="noopener" data-en="User manual (FI)">Käyttöohje</a>
+      <button class="btn" id="jsonBtn" type="button" data-en="Export / import">Vie / tuo</button>
+    </div>
+  </header>
+  <nav class="tabs" role="tablist" aria-label="Osat" data-en-aria="Sections">
+    <button type="button" role="tab" data-tab="gantt" aria-selected="true" data-en="Gantt chart">Gantt-kaavio</button>
+    <button type="button" role="tab" data-tab="net" aria-selected="false" data-en="Network &amp; CPM">Verkko ja kriittinen polku</button>
+    <button type="button" role="tab" data-tab="res" aria-selected="false" data-en="Resources">Resurssit</button>
+    <button type="button" role="tab" data-tab="evm" aria-selected="false" data-en="Costs &amp; earned value">Kustannukset ja ansaittu arvo</button>
+    <button type="button" role="tab" data-tab="mc" aria-selected="false" data-en="Forecast &amp; risk">Ennuste ja riskit</button>
+    <button type="button" role="tab" data-tab="ex" aria-selected="false" data-en="Exercises">Harjoitukset</button>
+  </nav>
+  <aside class="ctl" id="ctl" aria-label="Asetukset" data-en-aria="Settings"></aside>
+  <main class="view" id="view">
+    <div class="kpis" id="kpis"></div>
+    <div class="warns" id="warns"></div>
+    <section class="panel on" id="p-gantt">
+      <div class="card">
+        <div class="chead"><h4 data-en="Gantt chart">Gantt-kaavio</h4>
+          <label class="grp" style="font-size:14px"><span data-en="Scale">Mittakaava</span>
+            <select id="zoomSel"><option value="fit" data-en="Fit">Sovita</option><option value="8">8 px / pv</option><option value="16">16 px / pv</option><option value="28">28 px / pv</option></select></label></div>
+        <div class="scr" id="gScroll"><canvas id="cvG"></canvas></div>
+        <div class="leg" id="legG"></div>
+        <p class="mnote" data-en="Click a row to select a task. Drag a bar to delay its start; drag its right end to change the duration. Times are in working days.">Valitse tehtävä klikkaamalla riviä. Vedä palkkia: aloitus myöhästyy. Vedä palkin oikeaa päätä: kesto muuttuu. Ajat ovat työpäiviä.</p>
+      </div>
+      <div class="g2">
+        <div class="card"><h4 id="impTitle"></h4><canvas id="cvI" class="cv240"></canvas><p class="mnote" id="impTxt"></p></div>
+        <div class="card"><h4 data-en="Goals and basic figures">Tavoitteet ja peruslaskelmat</h4><table class="res" id="baseRes"></table></div>
+      </div>
+    </section>
+    <section class="panel" id="p-net">
+      <div class="card">
+        <div class="chead"><h4 data-en="Activity-on-node network (day numbers)">Verkkokaavio, tehtävät solmuina (päivänumerot)</h4></div>
+        <div class="scr"><canvas id="cvN"></canvas></div>
+        <div class="leg" id="legN"></div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <h4 data-en="Critical path calculation">Kriittisen polun laskenta</h4>
+        <div class="scr"><table class="tbl" id="cpmTbl"></table></div>
+        <p class="mnote" id="cpmNote"></p>
+      </div>
+    </section>
+    <section class="panel" id="p-res">
+      <div class="card">
+        <h4 data-en="Resource loading per working day">Resurssien kuormitus työpäivittäin</h4>
+        <div class="scr"><canvas id="cvR"></canvas></div>
+        <div class="leg" id="legR"></div>
+      </div>
+      <div class="g2">
+        <div class="card full"><h4 data-en="Resources">Resurssit</h4><div class="scr"><table class="tbl" id="resTbl"></table></div>
+          <p class="mnote" data-en="Units 1 = one person (or team) full time. Capacity and hourly rate can be edited in the table.">Yksikkö 1 = yksi henkilö (tai ryhmä) täysipäiväisesti. Kapasiteettia ja tuntihintaa voi muuttaa taulukossa.</p></div>
+      </div>
+    </section>
+    <section class="panel" id="p-evm">
+      <div class="g2" style="margin-top:0">
+        <div class="card"><h4 data-en="S-curve: planned value, earned value and actual cost">S-käyrä: suunniteltu arvo, ansaittu arvo ja toteutuneet kustannukset</h4><canvas id="cvS" class="cv360"></canvas><div class="leg" id="legS"></div></div>
+        <div class="card"><div class="chead"><h4 data-en="Earned value at the status date">Ansaittu arvo tilannepäivänä</h4>
+          <label class="grp" style="font-size:14px"><span>EAC</span><select id="eacSel"></select></label></div>
+          <table class="res" id="evmRes"></table><div class="interp" id="evmInt"></div></div>
+        <div class="card full"><h4 data-en="Earned value by task">Ansaittu arvo tehtävittäin</h4><div class="scr"><table class="tbl" id="evmTbl"></table></div></div>
+        <div class="card full"><h4 data-en="Planned cost by resource">Suunniteltu kustannus resursseittain</h4><div id="costBars"></div></div>
+      </div>
+    </section>
+    <section class="panel" id="p-mc">
+      <div class="g2" style="margin-top:0">
+        <div class="card"><div class="chead"><h4 data-en="Finish date distribution (Monte Carlo)">Valmistumisen jakauma (Monte Carlo)</h4>
+          <span class="grp"><select id="mcN"><option value="500">500</option><option value="2000" selected>2000</option><option value="5000">5000</option></select><button class="btn sm" id="mcRun" type="button" data-en="Run again">Aja uudelleen</button></span></div>
+          <canvas id="cvM" class="cv320"></canvas><div class="leg" id="legM"></div></div>
+        <div class="card"><h4 data-en="Forecast and probability of meeting the target">Ennuste ja tavoitteen todennäköisyys</h4><table class="res" id="mcRes"></table><p class="mnote" id="mcNote"></p></div>
+        <div class="card full"><h4 data-en="Criticality index: share of runs in which the task was critical">Kriittisyysindeksi: osuus kierroksista, joilla tehtävä oli kriittinen</h4><div id="critBars"></div></div>
+      </div>
+    </section>
+    <section class="panel" id="p-ex"><div id="exList"></div></section>
+  </main>
+</div>
+<div class="modal" id="modal" role="dialog" aria-modal="true"><div class="mbox" id="mbox"></div></div>
+<script>
+{
+'use strict';
+const VERSION='1.0.0';
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+let lang=(()=>{try{const u=new URLSearchParams(location.search).get('lang');if(u==='fi'||u==='en')return u;const s=localStorage.getItem('pmsim-lang');if(s==='fi'||s==='en')return s;}catch(e){}
+  return (navigator.language||'fi').toLowerCase().startsWith('fi')?'fi':'en';})();
+const tr=(fi,en)=>lang==='en'?en:fi;
+const L2=a=>Array.isArray(a)?(lang==='en'?a[1]:a[0]):String(a??'');
+const clamp=(x,a,b)=>x<a?a:x>b?b:x;
+const loc=()=>lang==='en'?'en-GB':'fi-FI';
+const nf=(x,d=1)=>Number.isFinite(x)?x.toLocaleString(loc(),{minimumFractionDigits:d,maximumFractionDigits:d,useGrouping:false}):'–';
+const eur=x=>Number.isFinite(x)?Math.round(x).toLocaleString(loc(),{maximumFractionDigits:0})+' €':'–';
+const pct=(x,d=0)=>Number.isFinite(x)?nf(x*100,d)+' %':'–';
+const esc=s=>String(s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const num=v=>{const x=parseFloat(String(v).replace(/[\s ]/g,'').replace(',','.'));return Number.isFinite(x)?x:NaN;};
+const sgnD=x=>(x>0?'+':x<0?'−':'±')+nf(Math.abs(x),0);
+const clone=o=>JSON.parse(JSON.stringify(o));
+
+/* ================= KALENTERI ================= */
+const DOW={fi:['su','ma','ti','ke','to','pe','la'],en:['Sun','Mon','Tue','Wed','Thu','Fri','Sat']};
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const iso=d=>d.toISOString().slice(0,10);
+function fD(d,mode){const D=d.getUTCDate(),M=d.getUTCMonth(),Y=d.getUTCFullYear();
+  if(lang==='en'){if(mode==='s')return D+' '+MON[M];return (mode==='l'?DOW.en[d.getUTCDay()]+' ':'')+D+' '+MON[M]+' '+Y;}
+  if(mode==='s')return D+'.'+(M+1)+'.';return (mode==='l'?DOW.fi[d.getUTCDay()]+' ':'')+D+'.'+(M+1)+'.'+Y;}
+/* Pääsiäispäivä (gregoriaaninen kalenteri, Meeus/Jones/Butcher) */
+function easter(y){const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),
+  h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;
+  return new Date(Date.UTC(y,mo-1,da));}
+/* Suomen arkipyhät sekä juhannusaatto ja jouluaatto (vakiintuneet vapaapäivät) */
+function holSet(y){const s=new Set(),E=easter(y),add=d=>s.add(iso(d)),f=(m,d)=>add(new Date(Date.UTC(y,m-1,d))),off=n=>add(new Date(E.getTime()+n*864e5));
+  f(1,1);f(1,6);off(-2);off(0);off(1);f(5,1);off(39);off(49);
+  for(let d=19;d<=25;d++){const t=new Date(Date.UTC(y,5,d));if(t.getUTCDay()===5){add(t);add(new Date(t.getTime()+864e5));}}
+  for(let d=31;d<=37;d++){const t=new Date(Date.UTC(y,9,d));if(t.getUTCDay()===6)add(t);}
+  f(12,6);f(12,24);f(12,25);f(12,26);return s;}
+const calCache={};
+function cal(st){const k=st.start+'|'+st.week+'|'+(st.hol?1:0);if(calCache[k])return calCache[k];
+  let d=new Date(st.start+'T00:00:00Z');if(isNaN(d))d=new Date(Date.UTC(2027,0,4));
+  const days=[],hs={};let g=0;
+  while(days.length<4000&&g<9000){g++;const y=d.getUTCFullYear();if(!hs[y])hs[y]=holSet(y);const dow=d.getUTCDay();
+    const work=(st.week==7||(dow!==0&&dow!==6))&&!(st.hol&&hs[y].has(iso(d)));if(work)days.push(d.getTime());d=new Date(d.getTime()+864e5);}
+  return calCache[k]=days;}
+/* päivänumero i (0 = ensimmäinen työpäivä) → päivämäärä */
+const wdDate=(st,i)=>{const c=cal(st);return new Date(c[clamp(Math.floor(i),0,c.length-1)]);};
+/* työpäivien määrä alusta annettuun päivään asti (päivä mukaan lukien) */
+function idxOfDate(st,s){const c=cal(st),t=new Date(s+'T00:00:00Z').getTime();if(isNaN(t))return 0;let lo=0,hi=c.length;while(lo<hi){const m=(lo+hi)>>1;if(c[m]<=t)lo=m+1;else hi=m;}return lo;}
+function isoWeek(d){const t=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()));const day=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-day);
+  const y0=new Date(Date.UTC(t.getUTCFullYear(),0,1));return Math.ceil(((t-y0)/864e5+1)/7);}
+const weekStart=(st,i)=>i===0||isoWeek(wdDate(st,i))!==isoWeek(wdDate(st,i-1));
+/* tehtävän alkupäivä ja loppupäivä (loppu = päivän EF−1 päättyessä) */
+const startDate=(st,es)=>wdDate(st,es);
+const endDate=(st,ef)=>wdDate(st,Math.max(0,Math.ceil(ef)-1));
+
+/* ================= RIIPPUVUUDET JA RESURSSIT (syöte) ================= */
+const TMAP={FS:'FS',SS:'SS',FF:'FF',SF:'SF',LA:'FS',AA:'SS',LL:'FF',AL:'SF'};
+const TFI={FS:'LA',SS:'AA',FF:'LL',SF:'AL'};
+const tLab=t=>lang==='en'?t:TFI[t];
+function parsePred(str){const out=[],err=[];if(!str||!String(str).trim())return{out,err};
+  for(const raw of String(str).split(/[,;]/)){const t=raw.trim();if(!t)continue;
+    const m=t.match(/^([A-Za-z0-9_]+)(?:\s+([A-Za-z]{2}))?\s*([+-]\s*\d+)?$/);
+    if(!m){err.push(t);continue;}
+    const ty=m[2]?TMAP[m[2].toUpperCase()]:'FS';if(!ty){err.push(t);continue;}
+    out.push({id:m[1].toUpperCase(),type:ty,lag:m[3]?parseInt(m[3].replace(/\s/g,''),10):0});}
+  return{out,err};}
+const predStr=ps=>ps.map(p=>p.id+((p.type!=='FS'||p.lag)?' '+tLab(p.type):'')+(p.lag?(p.lag>0?'+':'')+p.lag:'')).join(', ');
+function parseRes(str){const o={};if(!str)return o;for(const t of str.split(',')){const [r,u]=t.split(':');if(r&&r.trim())o[r.trim()]=u!==undefined?+u:1;}return o;}
+
+/* ================= ESIMERKKIPROJEKTIT =================
+   Kestot (työpäivinä), tuntihinnat ja kiinteät kustannukset ovat keksittyjä harjoitusarvoja.
+   tehtävä: [tunnus, nimi fi, nimi en, kesto M, optimistinen O, pessimistinen P, edeltäjät, resurssit, kiinteä kustannus €]
+   dl: tavoitepäivä perussuunnitelman loppuun nähden (työpv), bf: budjetti = BAC × bf, scen: seurantatilanne harjoituksiin */
+const EX=[
+{id:'ce',n:['Erikoiskoneen suunnittelu ja CE-merkintä','Special machine design and CE marking'],
+ d:['Asiakaskohtainen erikoiskone määrittelystä luovutukseen. Konedirektiivin mukainen riskin arviointi, turvatoimintojen suunnittelu ja validointi sekä tekninen tiedosto ovat omina tehtävinään.',
+    'A customer-specific special machine from specification to handover. Risk assessment, safety function design and validation, and the technical file are separate tasks.'],
+ start:'2027-01-11',hpd:7.5,dl:5,bf:1.06,
+ res:[['PM','Projektipäällikkö','Project manager',1,85],['MS','Mekaniikkasuunnittelija','Mechanical designer',2,75],['SA','Sähkö- ja automaatiosuunnittelija','Electrical and automation designer',1,75],['AS','Asentaja','Fitter',2,60],['TA','Turvallisuusasiantuntija','Safety specialist',1,95]],
+ t:[['A','Määrittely ja vaatimukset','Specification and requirements',5,4,8,'','PM:1,MS:0.5',0],
+  ['B','Alustava riskin arviointi (ISO 12100)','Preliminary risk assessment (ISO 12100)',4,3,7,'A','TA:1,MS:0.5',0],
+  ['C','Mekaniikkasuunnittelu','Mechanical design',15,12,24,'A, B SS+2','MS:2',0],
+  ['D','Sähkö- ja automaatiosuunnittelu','Electrical and automation design',12,10,18,'B','SA:1',0],
+  ['E','Turvatoimintojen suunnittelu (ISO 13849-1)','Safety function design (ISO 13849-1)',6,5,10,'B, D SS+4','TA:1,SA:0.5',0],
+  ['F','Osien hankinta ja toimitukset','Parts procurement and deliveries',20,15,35,'C','PM:0.2',38000],
+  ['G','Sähkökeskuksen valmistus','Control cabinet manufacture',10,8,14,'D, E','AS:1',9000],
+  ['H','Mekaaninen kokoonpano','Mechanical assembly',12,10,18,'F','AS:2',0],
+  ['I','Sähköasennus','Electrical installation',6,5,9,'G, H SS+6, H FF','AS:1,SA:0.5',1500],
+  ['J','Ohjelmointi ja käyttöönotto','Programming and commissioning',8,6,14,'I','SA:1',0],
+  ['K','Turvatoimintojen validointi','Safety function validation',3,2,6,'J','TA:1,SA:0.5',0],
+  ['L','Tekninen tiedosto ja käyttöohje','Technical file and instructions',8,6,12,'C, E, K FF+2','MS:1,TA:0.3',0],
+  ['M','Vaatimustenmukaisuusvakuutus ja luovutus','Declaration of conformity and handover',0,0,0,'K, L','',0]],
+ scen:{st:40,dev:{C:{extra:4,acf:1.12},D:{slip:3}}}},
+{id:'robo',n:['Robottihitsaussolun hankinta ja käyttöönotto','Robotic welding cell procurement and commissioning'],
+ d:['Konepaja hankkii robottihitsaussolun toimittajalta. Solun valmistus on toimittajan työtä ja näkyy kiinteänä kustannuksena; oma väki tekee kiinnittimet, perustukset, ohjelmoinnin ja koulutuksen.',
+    'A machine shop buys a robotic welding cell from a supplier. The cell build is the supplier’s work, shown as a fixed cost; own staff make the fixtures, foundations, programming and training.'],
+ start:'2027-02-01',hpd:7.5,dl:3,bf:1.04,
+ res:[['PM','Projektipäällikkö','Project manager',1,85],['RI','Robotiikkainsinööri','Robotics engineer',1,80],['HI','Hitsausinsinööri','Welding engineer',1,80],['KP','Kunnossapitoasentaja','Maintenance fitter',2,58]],
+ t:[['A','Tarvekartoitus ja investointilaskelma','Needs analysis and investment calculation',5,4,8,'','PM:1,RI:0.3',0],
+  ['B','Tarjouspyynnöt ja toimittajan valinta','Requests for quotation and supplier selection',10,8,15,'A','PM:0.5,RI:0.5',0],
+  ['C','Solun layout ja riskin arviointi (ISO 10218-2)','Cell layout and risk assessment (ISO 10218-2)',6,5,9,'B','RI:1',0],
+  ['D','Robottisolun valmistus toimittajalla','Cell manufacture at the supplier',30,25,45,'B FS+5','PM:0.1',145000],
+  ['E','Kiinnittimien suunnittelu','Fixture design',8,6,12,'C','HI:1,RI:0.3',0],
+  ['F','Kiinnittimien valmistus','Fixture manufacture',10,8,15,'E','KP:1',12000],
+  ['G','Perustukset ja sähkösyötöt','Foundations and power supply',5,4,8,'C','KP:2',6000],
+  ['H','Tehdashyväksyntä (FAT) toimittajalla','Factory acceptance test (FAT)',2,2,4,'D, F','RI:1,HI:1,PM:0.5',1800],
+  ['I','Kuljetus ja asennus','Transport and installation',4,3,7,'G, H','KP:2,RI:1',4500],
+  ['J','Ohjelmointi ja hitsausohjeet (WPS)','Programming and welding procedures (WPS)',8,6,14,'I','RI:1,HI:1',0],
+  ['K','Henkilöstön koulutus','Staff training',3,3,5,'J SS+4','RI:0.5,KP:1',0],
+  ['L','Vastaanottotarkastus (SAT) ja luovutus','Site acceptance test (SAT) and handover',2,2,4,'J, K','RI:1,HI:1,PM:0.5',0],
+  ['M','Solu tuotantokäytössä','Cell in production',0,0,0,'L','',0]],
+ scen:{st:35,dev:{D:{extra:6},E:{acf:1.2}}}},
+{id:'halli',n:['Teräsrunkoisen konehallin rakentaminen','Steel-frame machine hall construction'],
+ d:['Rakennuslupa, maanrakennus, perustukset, runko ja elementit, talotekniikka. Betonin lujittuminen on mallinnettu riippuvuuden viiveenä (C → E, LA+7).',
+    'Permit, groundworks, foundations, frame and cladding, building services. Concrete curing is modelled as a dependency lag (C → E, FS+7).'],
+ start:'2027-03-01',hpd:8,dl:6,bf:1.05,
+ res:[['TJ','Vastaava työnjohtaja','Site manager',1,70],['MR','Maanrakennusryhmä','Groundworks crew',1,140],['BR','Betoniryhmä','Concrete crew',1,150],['ASR','Asennusryhmä','Erection crew',1,160],['SU','Sähköurakoitsija','Electrical contractor',1,120],['LV','LVI-urakoitsija','HVAC contractor',1,120]],
+ t:[['A','Rakennuslupa ja suunnitelmat','Building permit and drawings',25,20,40,'','TJ:0.2',6500],
+  ['B','Maanrakennus ja pohjatyöt','Groundworks',8,6,14,'A','MR:1,TJ:0.3',12000],
+  ['C','Perustukset ja anturat','Foundations and footings',6,5,10,'B','BR:1,TJ:0.3',9000],
+  ['D','Teräsrungon valmistus konepajalla','Steel frame fabrication',20,16,30,'A','',48000],
+  ['E','Teräsrungon asennus','Steel frame erection',6,5,9,'C FS+7, D','ASR:1,TJ:0.3',4500],
+  ['F','Kattoelementit','Roof panels',5,4,8,'E','ASR:1',22000],
+  ['G','Seinäelementit','Wall panels',7,6,11,'E SS+3','ASR:1',26000],
+  ['H','Lattiavalu','Floor slab casting',4,3,6,'F','BR:1,TJ:0.3',14000],
+  ['I','Sähkötyöt','Electrical work',10,8,15,'G SS+3','SU:1',15000],
+  ['J','LVI-työt','HVAC work',8,6,12,'G SS+3','LV:1',12000],
+  ['K','Ovet ja ikkunat','Doors and windows',3,3,5,'G','ASR:1',18000],
+  ['L','Viimeistely ja tarkastukset','Finishing and inspections',3,2,5,'H, I, J, K','TJ:1',0],
+  ['M','Käyttöönottotarkastus','Final inspection',0,0,0,'L','',0]],
+ scen:{st:50,dev:{C:{extra:3},F:{acf:1.1},D:{slip:2}}}},
+{id:'tki',n:['TKI-hanke: pilotointi yrityksissä','RDI project: company pilots'],
+ d:['Ulkopuolisella rahoituksella toteutettava kehittämishanke: kartoitus, pilottiympäristön hankinta, pilotit yrityksissä, tulokset, julkaisu ja loppuraportti.',
+    'An externally funded development project: survey, pilot environment procurement, company pilots, results, publication and final report.'],
+ start:'2027-01-04',hpd:7.5,dl:8,bf:1.05,
+ res:[['PP','Projektipäällikkö','Project manager',1,62],['TU','Tutkija','Researcher',2,55],['TA','Tutkimusavustaja','Research assistant',1,42],['VI','Viestintäasiantuntija','Communications specialist',1,50]],
+ t:[['A','Käynnistys ja ohjausryhmä','Kick-off and steering group',10,8,15,'','PP:0.5',0],
+  ['B','Kirjallisuuskatsaus','Literature review',25,20,35,'A','TU:1',0],
+  ['C','Yrityshaastattelut','Company interviews',20,15,30,'A SS+5','TU:1,TA:0.5',0],
+  ['D','Pilottiympäristön hankinta','Pilot environment procurement',30,25,50,'A','PP:0.3',60000],
+  ['E','Pilottien suunnittelu','Pilot planning',15,12,22,'B, C','TU:2',0],
+  ['F','Pilotit yrityksissä','Company pilots',40,30,60,'D, E','TU:1,TA:1',8000],
+  ['G','Tulosten analysointi','Analysis of results',15,12,22,'F','TU:1',0],
+  ['H','Tieteellinen artikkeli','Scientific article',20,15,35,'G SS+5','TU:1',0],
+  ['I','Viestintä ja verkostotapahtumat','Communication and network events',100,95,105,'A','VI:0.2',5000],
+  ['J','Loppuseminaari','Final seminar',2,2,3,'G','PP:1,VI:1,TU:1',3000],
+  ['K','Loppuraportti ja maksatushakemus','Final report and payment claim',10,8,15,'G, J','PP:1',0],
+  ['L','Hanke päättyy','Project ends',0,0,0,'H, I, K','',0]],
+ scen:{st:60,dev:{C:{extra:14},D:{extra:13},B:{acf:1.1}}}},
+{id:'sw',n:['Ohjelmistoprojekti: huoltosovellus','Software project: maintenance app'],
+ d:['Kunnossapidon mobiilisovellus taustajärjestelmineen. Kehittäjiä on kolme; integraatiot alkavat taustajärjestelmän aikana, mikä ylikuormittaa kehittäjät. Tavoitepäivä ja budjetti on asetettu tiukoiksi.',
+    'A maintenance mobile app with a back end. Three developers; integrations start during the back-end work, which overloads them. The target date and budget are deliberately tight.'],
+ start:'2027-02-01',hpd:7.5,dl:-2,bf:0.98,
+ res:[['PO','Tuoteomistaja','Product owner',1,80],['UX','UX-suunnittelija','UX designer',1,70],['DEV','Ohjelmistokehittäjä','Software developer',3,75],['QA','Testaaja','Tester',1,65]],
+ t:[['A','Vaatimusmäärittely','Requirements',8,6,12,'','PO:1,UX:0.5',0],
+  ['B','UX- ja käyttöliittymäsuunnittelu','UX and UI design',10,8,16,'A SS+4','UX:1',0],
+  ['C','Arkkitehtuuri ja tekniset valinnat','Architecture and technology choices',5,4,8,'A','DEV:1',0],
+  ['D','Taustajärjestelmä ja rajapinnat','Back end and APIs',20,15,32,'C','DEV:2',0],
+  ['E','Käyttöliittymän toteutus','Front-end implementation',18,14,28,'B, C','DEV:1',0],
+  ['F','Integraatiot (ERP, kunnossapitojärjestelmä)','Integrations (ERP, CMMS)',10,8,20,'D SS+8','DEV:1',0],
+  ['G','Testaus','Testing',12,10,18,'E SS+6, F SS+3, F FF+1, D FF+2','QA:1',0],
+  ['H','Käyttäjäpilotti','User pilot',5,4,8,'G, E','PO:0.5,UX:0.5,QA:0.5',0],
+  ['I','Korjaukset ja viimeistely','Fixes and polishing',6,4,12,'H','DEV:2,QA:0.5',0],
+  ['K','Käyttöohje ja tukimateriaali','User guide and support material',6,5,9,'H','UX:0.5,PO:0.5',0],
+  ['J','Julkaisu','Release',0,0,0,'I, K','',0]],
+ scen:{st:25,dev:{D:{extra:5},F:{acf:1.3},B:{extra:2}}}}
+];
+
+/* ================= LASKENTA ================= */
+const resMap=st=>{const m={};st.res.forEach(r=>m[r.id]=r);return m;};
+function req(e,ES,EF,dj){switch(e.type){case'SS':return ES[e.i]+e.lag;case'FF':return EF[e.i]+e.lag-dj;case'SF':return ES[e.i]+e.lag-dj;default:return EF[e.i]+e.lag;}}
+/* Kriittisen polun menetelmä (CPM): eteenpäin- ja taaksepäinlaskenta, riippuvuudet LA/AA/LL/AL viiveineen.
+   dur: valinnainen kestotaulukko (Monte Carlo), light: vain ajat ja kriittisyys. */
+function compute(st,dur,light){
+  const T=st.tasks,n=T.length,idx={},errs=[];T.forEach((t,i)=>idx[t.id]=i);
+  const preds=T.map(()=>[]),succs=T.map(()=>[]);
+  T.forEach((t,j)=>t.pred.forEach(p=>{const i=idx[p.id];
+    if(i===undefined){errs.push(tr(`Tehtävän ${t.id} edeltäjää ${p.id} ei ole.`,`Predecessor ${p.id} of task ${t.id} does not exist.`));return;}
+    if(i===j){errs.push(tr(`Tehtävä ${t.id} ei voi olla oma edeltäjänsä.`,`Task ${t.id} cannot be its own predecessor.`));return;}
+    const e={i,j,type:p.type,lag:p.lag||0};preds[j].push(e);succs[i].push(e);}));
+  const indeg=preds.map(a=>a.length),order=[],q=[];indeg.forEach((v,i)=>{if(!v)q.push(i);});
+  while(q.length){const i=q.shift();order.push(i);for(const e of succs[i])if(--indeg[e.j]===0)q.push(e.j);}
+  if(order.length<n){const rest=T.map((t,i)=>i).filter(i=>!order.includes(i));
+    errs.push(tr('Riippuvuuksissa on silmukka: ','The dependencies contain a loop: ')+rest.map(i=>T[i].id).join(', ')+tr('. Silmukan riippuvuuksia ei huomioida.','. The loop links are ignored.'));order.push(...rest);}
+  const pos=[];order.forEach((i,k)=>pos[i]=k);
+  const D=T.map((t,i)=>dur?dur[i]:Math.max(0,t.d+(t.extra||0)));
+  const ES=new Float64Array(n),EF=new Float64Array(n),LS=new Float64Array(n),LF=new Float64Array(n),TF=new Float64Array(n),FF=new Float64Array(n);
+  for(const j of order){let es=0;for(const e of preds[j]){if(pos[e.i]>pos[j])continue;es=Math.max(es,req(e,ES,EF,D[j]));}
+    ES[j]=Math.max(0,es)+(T[j].slip||0)+(T[j].lvl||0);EF[j]=ES[j]+D[j];}
+  let fin=0;for(let i=0;i<n;i++)fin=Math.max(fin,EF[i]);
+  for(let k=n-1;k>=0;k--){const i=order[k];let lf=fin;
+    for(const e of succs[i]){if(pos[e.j]<pos[i])continue;let v;
+      switch(e.type){case'SS':v=LS[e.j]-e.lag+D[i];break;case'FF':v=LF[e.j]-e.lag;break;case'SF':v=LF[e.j]-e.lag+D[i];break;default:v=LS[e.j]-e.lag;}
+      lf=Math.min(lf,v);}
+    LF[i]=lf;LS[i]=lf-D[i];TF[i]=LS[i]-ES[i];}
+  const crit=Array.from(TF,v=>v<=1e-6);
+  const res={n,idx,order,pos,preds,succs,D,ES,EF,LS,LF,TF,crit,fin,errs};
+  if(light)return res;
+  for(let i=0;i<n;i++){let ff=succs[i].length?Infinity:fin-EF[i];
+    for(const e of succs[i]){if(pos[e.j]<pos[i])continue;let s;
+      switch(e.type){case'SS':s=ES[e.j]-(ES[i]+e.lag);break;case'FF':s=EF[e.j]-(EF[i]+e.lag);break;case'SF':s=EF[e.j]-(ES[i]+e.lag);break;default:s=ES[e.j]-(EF[i]+e.lag);}
+      ff=Math.min(ff,s);}
+    FF[i]=Math.max(0,Math.min(ff===Infinity?0:ff,TF[i]));}
+  /* kriittinen ketju: projektin lopusta taaksepäin määräävien edeltäjien kautta */
+  const chain=[];let cur=-1;
+  for(let k=n-1;k>=0;k--){const i=order[k];if(crit[i]&&Math.abs(EF[i]-fin)<1e-6){cur=i;break;}}
+  const seen=new Set();
+  while(cur>=0&&!seen.has(cur)){seen.add(cur);chain.unshift(cur);const base=ES[cur]-(T[cur].slip||0)-(T[cur].lvl||0);let nx=-1;
+    if((T[cur].slip||0)+(T[cur].lvl||0)>1e-9)break;
+    for(const e of preds[cur]){if(pos[e.i]>pos[cur])continue;if(crit[e.i]&&Math.abs(req(e,ES,EF,D[cur])-base)<1e-6){nx=e.i;break;}}
+    cur=nx;}
+  const rm=resMap(st);
+  const cost=T.map((t,i)=>{let lab=0;for(const r in t.res){const R=rm[r];if(R)lab+=(t.res[r]||0)*D[i]*st.hpd*R.rate;}return lab+(t.fix||0);});
+  const hours=T.map((t,i)=>{let h=0;for(const r in t.res)h+=(t.res[r]||0)*D[i]*st.hpd;return h;});
+  Object.assign(res,{FF,chain,cost,hours,total:cost.reduce((a,b)=>a+b,0)});
+  return res;}
+
+/* kuormitus: resurssi → yksiköt päivää kohden */
+function loads(st,c){const L={},len=Math.ceil(c.fin)+1;st.res.forEach(r=>L[r.id]=new Float64Array(len));
+  st.tasks.forEach((t,i)=>{if(c.D[i]<=0)return;for(const r in t.res){const u=t.res[r]||0;if(!u||!L[r])continue;for(let d=Math.floor(c.ES[i]);d<Math.ceil(c.EF[i])&&d<len;d++)L[r][d]+=u;}});
+  const over={},peak={};let overDays=0;
+  st.res.forEach(r=>{let o=0,p=0;for(const v of L[r.id]){if(v>r.cap+1e-9)o++;p=Math.max(p,v);}over[r.id]=o;peak[r.id]=p;overDays+=o;});
+  return{L,over,peak,overDays};}
+
+/* Resurssien tasoitus: sarjallinen ajoitus. Valitaan tehtävä, jonka edeltäjät on ajoitettu ja jonka myöhäisin alkamisaika on pienin,
+   ja siirretään se ensimmäiseen ajankohtaan, jossa yhdenkään resurssin kapasiteetti ei ylity. Palauttaa tasoitusviiveet. */
+function level(st){const T=st.tasks,saved=T.map(t=>t.lvl);T.forEach(t=>t.lvl=0);const c=compute(st,null,true);const n=T.length,rm=resMap(st);
+  const done=new Array(n).fill(false),ES=new Float64Array(n),EF=new Float64Array(n),use={},lv=new Array(n).fill(0);
+  st.res.forEach(r=>use[r.id]=new Float64Array(6000));
+  for(let cnt=0;cnt<n;cnt++){let best=-1;
+    for(let i=0;i<n;i++){if(done[i])continue;if(!c.preds[i].every(e=>done[e.i]||c.pos[e.i]>c.pos[i]))continue;
+      if(best<0||c.LS[i]<c.LS[best]-1e-9||(Math.abs(c.LS[i]-c.LS[best])<1e-9&&c.TF[i]<c.TF[best]))best=i;}
+    if(best<0)best=done.indexOf(false);
+    const j=best;let est=0;for(const e of c.preds[j])if(done[e.i])est=Math.max(est,req(e,ES,EF,c.D[j]));est=Math.max(0,est)+(T[j].slip||0);
+    const dj=c.D[j],rs=Object.entries(T[j].res).filter(([r,u])=>u>0&&rm[r]&&u<=rm[r].cap+1e-9);let t0=est;
+    if(dj>0&&rs.length){for(let g=0;g<4000;g++){let ok=true;for(let d=t0;d<t0+dj&&ok;d++)for(const [r,u] of rs)if(use[r][d]+u>rm[r].cap+1e-9){ok=false;break;}if(ok)break;t0++;}
+      for(let d=t0;d<t0+dj;d++)for(const [r,u] of rs)use[r][d]+=u;}
+    ES[j]=t0;EF[j]=t0+dj;lv[j]=t0-est;done[j]=true;}
+  T.forEach((t,i)=>t.lvl=saved[i]);return lv;}
+
+/* perustaso */
+function snap(st){const c=compute(st);const t={};st.tasks.forEach((k,i)=>t[k.id]={es:c.ES[i],ef:c.EF[i],d:c.D[i],cost:c.cost[i]});return{fin:c.fin,bac:c.total,t};}
+
+/* Ansaitun arvon menetelmä tilannepäivänä (tilannepäivä S = kuluneita työpäiviä). */
+const frac=(es,d,t)=>d<=0?(t>=es?1:0):clamp((t-es)/d,0,1);
+function evm(st,c){const B=st.base||snap(st),S0=st.status,bt=Object.values(B.t);
+  const PVb=t=>{let s=0;for(const b of bt)s+=b.cost*frac(b.es,b.d,t);return s;};
+  const rows=st.tasks.map((t,i)=>{const b=B.t[t.id],bac=b?b.cost:0,pv=b?bac*frac(b.es,b.d,S0):0;
+    const p=st.auto?frac(c.ES[i],c.D[i],S0):clamp((t.prog||0)/100,0,1);return{bac,pv,ev:bac*p,ac:c.cost[i]*p*(t.acf??1),p};});
+  const sum=k=>rows.reduce((a,r)=>a+r[k],0);
+  const BAC=B.bac,PV=PVb(S0),EV=sum('ev'),AC=sum('ac');
+  const CPI=AC>0?EV/AC:NaN,SPI=PV>0?EV/PV:NaN;
+  let ESt=NaN;if(S0>0){if(EV>=PVb(B.fin)-1e-6)ESt=B.fin;else{let lo=0,hi=B.fin;for(let k=0;k<50;k++){const m=(lo+hi)/2;if(PVb(m)<EV)lo=m;else hi=m;}ESt=lo;}}
+  const SPIt=S0>0?ESt/S0:NaN,IEACt=SPIt>0?B.fin/SPIt:NaN;
+  const eacOf=m=>{if(!(AC>0))return c.total;if(m==='ac')return AC+(BAC-EV);if(m==='cs')return (CPI*SPI>0)?AC+(BAC-EV)/(CPI*SPI):NaN;return CPI>0?BAC/CPI:NaN;};
+  const EAC=eacOf(st.eac||'cpi');
+  return{B,PVb,rows,BAC,PV,EV,AC,SV:EV-PV,CV:EV-AC,CPI,SPI,ESt,SPIt,IEACt,EAC,ETC:EAC-AC,VAC:BAC-EAC,
+    TCPI:(BAC-AC)!==0?(BAC-EV)/(BAC-AC):NaN,TCPIb:(st.budget-AC)!==0?(BAC-EV)/(st.budget-AC):NaN};}
+
+/* PERT: odotusarvo ja hajonta kriittisen ketjun tehtävistä, normaalijakauma-approksimaatio */
+const Phi=z=>{const t=1/(1+0.3275911*Math.abs(z)/Math.SQRT2),y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-(z*z)/2);return 0.5*(1+(z>=0?y:-y));};
+function pert(st,c,dl){let dT=0,v=0;const rows=[];
+  for(const i of c.chain){const t=st.tasks[i],m=c.D[i],ex=t.extra||0,o=Math.min(m,Math.max(0,(t.o??t.d)+ex)),p=Math.max(m,(t.p??t.d)+ex);
+    const te=(o+4*m+p)/6,s=(p-o)/6;dT+=te-m;v+=s*s;rows.push({i,o,m,p,te,s});}
+  const Te=c.fin+dT,sd=Math.sqrt(v);const P=sd>0?Phi((dl-Te)/sd):(Te<=dl+1e-9?1:0);
+  return{Te,sd,P,rows};}
+
+/* Monte Carlo: kolmiojakauma (O, M, P) jokaiselle tehtävälle, kiinteä siemenluku */
+function rng(seed){return()=>{seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function tri(u,a,m,b){if(b<=a)return m;const fc=(m-a)/(b-a);return u<fc?a+Math.sqrt(u*(b-a)*(m-a)):b-Math.sqrt((1-u)*(b-a)*(b-m));}
+function monteCarlo(st,N,dl){const r=rng(20261124),n=st.tasks.length,fins=new Float64Array(N),cc=new Array(n).fill(0);
+  const par=st.tasks.map(t=>{const ex=t.extra||0,m=Math.max(0,t.d+ex);return[Math.min(m,Math.max(0,(t.o??t.d)+ex)),m,Math.max(m,(t.p??t.d)+ex)];});
+  for(let k=0;k<N;k++){const dur=par.map(p=>tri(r(),p[0],p[1],p[2]));const c=compute(st,dur,true);fins[k]=c.fin;for(let i=0;i<n;i++)if(c.crit[i])cc[i]++;}
+  const s=Array.from(fins).sort((a,b)=>a-b),q=p=>s[Math.min(N-1,Math.floor(p*N))];
+  let ok=0;for(const f of s)if(f<=dl+1e-9)ok++;
+  return{s,N,mean:s.reduce((a,b)=>a+b,0)/N,p10:q(0.1),p50:q(0.5),p80:q(0.8),p90:q(0.9),P:ok/N,crit:cc.map(v=>v/N)};}
+
+/* ================= TILA ================= */
+function mkTask(a){return{id:a[0],n:[a[1],a[2]],d:a[3],o:a[4],p:a[5],pred:parsePred(a[6]).out,res:parseRes(a[7]),fix:a[8]||0,prog:0,acf:1,extra:0,slip:0,lvl:0};}
+function fromEx(ex){const st={v:1,ex:ex.id,start:ex.start,week:ex.week===7?7:5,hol:ex.hol??true,hpd:ex.hpd||7.5,status:0,auto:true,eac:'cpi',
+    res:ex.res.map(r=>({id:r[0],n:[r[1],r[2]],cap:r[3],rate:r[4]})),tasks:ex.t.map(mkTask)};
+  if(ex.custom)st.def=ex;
+  st.base=snap(st);const c=compute(st,null,true);const rd=st.base.bac<20000?100:1000;
+  st.deadline=ex.deadline||iso(endDate(st,c.fin+(ex.dl||0)));st.budget=ex.budget!=null?ex.budget:Math.round(st.base.bac*(ex.bf||1)/rd)*rd;st.status=Math.round(c.fin*0.4);return st;}
+/* Omalle projektille muodostetaan seurantatilanne automaattisesti: tilannepäivä puolivälissä, yksi kriittinen tehtävä venyy ~30 %
+   ja yhden tehtävän toteutuneet kustannukset ovat 15 % suunniteltua suuremmat. */
+function genScen(ex){const st=fromEx(ex),c=compute(st);const S0=Math.max(1,Math.round(c.fin*0.5)),dev={};
+  const ord=c.order.filter(i=>c.D[i]>0&&c.ES[i]<S0);const ci=ord.find(i=>c.crit[i]&&c.ES[i]>0)??ord.find(i=>c.crit[i]);
+  if(ci!==undefined)dev[st.tasks[ci].id]={extra:Math.max(2,Math.round(c.D[ci]*0.3))};
+  const ai=ord.find(i=>i!==ci&&c.cost[i]>0)??(ci!==undefined&&c.cost[ci]>0?ci:undefined);
+  if(ai!==undefined){const k=st.tasks[ai].id;dev[k]=Object.assign(dev[k]||{},{acf:1.15});}
+  return{st:S0,dev};}
+function withScen(ex){const st=fromEx(ex),sc=ex.scen||genScen(ex);st.status=sc.st;for(const id in sc.dev){const t=st.tasks.find(k=>k.id===id);if(t)Object.assign(t,sc.dev[id]);}return st;}
+let CUSTOM=[];try{const c=JSON.parse(localStorage.getItem('pmsim-custom')||'[]');if(Array.isArray(c))CUSTOM=c.filter(e=>e&&e.id&&Array.isArray(e.t)&&Array.isArray(e.res));}catch(e){}
+const saveCustom=()=>{try{localStorage.setItem('pmsim-custom',JSON.stringify(CUSTOM));}catch(e){}};
+const exById=id=>EX.find(e=>e.id===id)||CUSTOM.find(e=>e.id===id)||(S&&S.def&&S.def.id===id?S.def:null)||EX[0];
+
+let S=null,CUR=null,selId=null,tab='gantt',hist=[],mcCache={key:'',r:null},exAns={};
+try{const s=JSON.parse(localStorage.getItem('pmsim-state')||'null');if(s&&s.v===1&&Array.isArray(s.tasks)&&Array.isArray(s.res))S=s;const tb=localStorage.getItem('pmsim-tab');if(tb)tab=tb;}catch(e){}
+if(!S)S=fromEx(EX[0]);
+const dlIdx=st=>idxOfDate(st,st.deadline);
+const selIdx=()=>{const i=S.tasks.findIndex(t=>t.id===selId);return i;};
+function pushHist(){hist.push(JSON.stringify(S));if(hist.length>60)hist.shift();}
+function save(){try{localStorage.setItem('pmsim-state',JSON.stringify(S));}catch(e){}}
+function after(full){CUR=compute(S);if(selIdx()<0)selId=S.tasks.length?S.tasks[0].id:null;save();if(full)renderCtl();else updCtl();render();}
+function change(fn,full){pushHist();fn();after(full);}
+
+/* ================= VÄRIT JA PIIRTOAPU ================= */
+let COL={};
+function readCol(){const s=getComputedStyle(document.documentElement),v=n=>s.getPropertyValue(n).trim();
+  COL={ink:v('--ink'),muted:v('--muted'),line:v('--line'),grid:v('--grid'),grid2:v('--grid2'),paper:v('--paper'),panel:v('--panel'),acc:v('--acc'),sel:v('--sel'),ok:v('--ok'),warn:v('--warn'),c1:v('--c1'),c2:v('--c2'),c3:v('--c3'),c4:v('--c4')};}
+function prep(cv,w,h){const dpr=window.devicePixelRatio||1;if(w!=null){cv.style.width=w+'px';}if(h!=null)cv.style.height=h+'px';
+  const W=w!=null?w:(cv.clientWidth||300),H=h!=null?h:(cv.clientHeight||200);cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+  const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);g.font='12px Barlow, system-ui, sans-serif';return{g,w:W,h:H};}
+function alpha(col,a){if(col.startsWith('#')&&col.length===7){const r=parseInt(col.slice(1,3),16),g=parseInt(col.slice(3,5),16),b=parseInt(col.slice(5,7),16);return `rgba(${r},${g},${b},${a})`;}return col;}
+function niceMax(v){if(!(v>0))return 1;const p=Math.pow(10,Math.floor(Math.log10(v)));for(const m of[1,1.2,1.5,2,2.5,3,4,5,6,8,10])if(m*p>=v*1.0001)return m*p;return 10*p;}
+const kEur=v=>v>=1e6?nf(v/1e6,v>=1e7?0:1)+' M€':v>=1e3?nf(v/1e3,0)+' k€':nf(v,0)+' €';
+function ellipsis(g,s,w){if(g.measureText(s).width<=w)return s;let t=s;while(t.length>1&&g.measureText(t+'…').width>w)t=t.slice(0,-1);return t+'…';}
+function xTicks(g,x0,dw,maxDay,yTop,yBot,label){let last=-1e9;g.textAlign='left';g.textBaseline='top';
+  for(let i=0;i<=maxDay;i++){if(!weekStart(S,i))continue;const x=x0+i*dw;g.strokeStyle=COL.grid2;g.lineWidth=1;g.beginPath();g.moveTo(x+.5,yTop);g.lineTo(x+.5,yBot);g.stroke();
+    if(label&&x-last>=46){g.fillStyle=COL.muted;g.fillText(fD(wdDate(S,i),'s'),x+3,yBot+3);last=x;}}}
+function vline(g,x,y0,y1,col,dash,lw){g.save();g.strokeStyle=col;g.lineWidth=lw||1.5;g.setLineDash(dash||[]);g.beginPath();g.moveTo(x,y0);g.lineTo(x,y1);g.stroke();g.restore();}
+function tag(g,x,y,txt,col){g.save();g.font='600 11.5px Barlow, sans-serif';const w=g.measureText(txt).width+8;let xx=Math.min(Math.max(x-w/2,2),g.canvas.clientWidth?g.canvas.clientWidth-w-2:x);
+  g.fillStyle=col;g.beginPath();g.roundRect?g.roundRect(xx,y,w,16,4):g.rect(xx,y,w,16);g.fill();g.fillStyle='#fff';g.textAlign='left';g.textBaseline='middle';g.fillText(txt,xx+4,y+8);g.restore();}
+
+/* ================= GANTT ================= */
+let gGeo=null,drag=null;
+function drawGantt(){const st=S,c=CUR,n=st.tasks.length,cv=$('#cvG'),box=$('#gScroll');
+  const narrow=box.clientWidth<620,leftW=narrow?190:300,rowH=28,head=38,dl=dlIdx(st);
+  const maxDay=Math.ceil(Math.max(c.fin,st.base?st.base.fin:0,dl,st.status))+3;
+  const z=$('#zoomSel').value;let dw=drag&&drag.dw?drag.dw:(z==='fit'?Math.max(3,(box.clientWidth-leftW-12)/maxDay):+z);
+  const W=Math.ceil(leftW+dw*maxDay+10),H=head+rowH*n+24;const {g}=prep(cv,W,H);const x0=leftW;
+  const X=d=>x0+d*dw;gGeo={leftW,dw,head,rowH,bars:[]};
+  // taustat
+  for(let r=0;r<n;r++){const y=head+r*rowH;if(st.tasks[r].id===selId){g.fillStyle=alpha(COL.sel,.13);g.fillRect(0,y,W,rowH);}else if(r%2){g.fillStyle=alpha(COL.grid,.6);g.fillRect(0,y,W,rowH);}}
+  xTicks(g,x0,dw,maxDay,head-14,head+rowH*n,false);
+  // otsikkorivi: viikot
+  g.fillStyle=COL.muted;g.textBaseline='top';g.textAlign='left';let last=-1e9;
+  for(let i=0;i<=maxDay;i++){if(!weekStart(st,i))continue;const x=X(i);const d=wdDate(st,i);const lab=(lang==='en'?'wk ':'vk ')+isoWeek(d);
+    if(x-last>=(dw*5>=70?70:38)){g.fillText(lab,x+3,4);if(dw*5>=44)g.fillText(fD(d,'s'),x+3,19);last=x;}}
+  g.font='600 12px Barlow, sans-serif';g.fillStyle=COL.muted;g.fillText(tr('Tehtävä','Task'),8,19);g.textAlign='right';
+  g.fillText(tr('Kesto','Dur.'),leftW-46,19);g.fillText(tr('Pelivara','Float'),leftW-6,4);g.fillText('TF',leftW-6,19);
+  g.strokeStyle=COL.line;g.beginPath();g.moveTo(0,head-.5);g.lineTo(W,head-.5);g.moveTo(leftW-.5,0);g.lineTo(leftW-.5,head+rowH*n);g.stroke();
+  // vasen sarake
+  for(let r=0;r<n;r++){const t=st.tasks[r],y=head+r*rowH+rowH/2;g.textBaseline='middle';g.textAlign='left';
+    g.font='600 13px Barlow, sans-serif';g.fillStyle=c.crit[r]?COL.c1:COL.ink;g.fillText(t.id,8,y);
+    g.font='13px Barlow, sans-serif';g.fillStyle=COL.ink;g.fillText(ellipsis(g,L2(t.n),leftW-(narrow?80:96)-34),narrow?30:34,y);
+    g.textAlign='right';g.fillText(nf(c.D[r],0),leftW-46,y);g.fillStyle=c.crit[r]?COL.c1:COL.muted;g.fillText(nf(c.TF[r],0),leftW-6,y);}
+  // riippuvuusnuolet
+  g.lineWidth=1.2;
+  for(let j=0;j<n;j++)for(const e of c.preds[j]){const i=e.i;const sx=X(e.type==='SS'||e.type==='SF'?c.ES[i]:c.EF[i]),sy=head+i*rowH+rowH/2;
+    const tx=X(e.type==='FS'||e.type==='SS'?c.ES[j]:c.EF[j]),ty=head+j*rowH+rowH/2;const toStart=e.type==='FS'||e.type==='SS';
+    const fromEnd=e.type==='FS'||e.type==='FF';const binding=Math.abs(req(e,c.ES,c.EF,c.D[j])-(c.ES[j]-(st.tasks[j].slip||0)-(st.tasks[j].lvl||0)))<1e-6;
+    const col=c.crit[i]&&c.crit[j]&&binding?COL.c1:alpha(COL.muted,.75);g.strokeStyle=col;g.fillStyle=col;
+    const px=sx+(fromEnd?6:-6),qx=tx+(toStart?-6:6),dir=ty>sy?1:-1;
+    g.beginPath();g.moveTo(sx,sy);g.lineTo(px,sy);g.lineTo(px,ty-dir*0);g.lineTo(qx,ty);g.lineTo(tx+(toStart?-1:1),ty);g.stroke();
+    const ad=toStart?1:-1;g.beginPath();g.moveTo(tx,ty);g.lineTo(tx-ad*5,ty-3.5);g.lineTo(tx-ad*5,ty+3.5);g.closePath();g.fill();}
+  // palkit
+  for(let r=0;r<n;r++){const t=st.tasks[r],yc=head+r*rowH+rowH/2,b=st.base&&st.base.t[t.id];
+    if(b){g.fillStyle=alpha(COL.muted,.45);if(b.d>0)g.fillRect(X(b.es),yc+7,Math.max(1,b.d*dw),4);else{g.fillRect(X(b.es)-2,yc+7,4,4);}}
+    const delay=(t.slip||0)+(t.lvl||0);
+    if(delay>0){g.save();g.strokeStyle=COL.acc;g.lineWidth=2;g.setLineDash([3,3]);g.beginPath();g.moveTo(X(c.ES[r]-delay),yc);g.lineTo(X(c.ES[r]),yc);g.stroke();g.restore();}
+    if(c.TF[r]>1e-6){g.strokeStyle=alpha(COL.muted,.8);g.lineWidth=1;g.beginPath();g.moveTo(X(c.EF[r]),yc);g.lineTo(X(c.LF[r]),yc);g.moveTo(X(c.LF[r]),yc-4);g.lineTo(X(c.LF[r]),yc+4);g.stroke();}
+    const col=c.crit[r]?COL.c1:COL.c2;
+    if(c.D[r]>0){const x1=X(c.ES[r]),w=c.D[r]*dw;g.fillStyle=col;g.beginPath();g.roundRect?g.roundRect(x1,yc-7,w,13,3):g.rect(x1,yc-7,w,13);g.fill();
+      const p=S.auto?frac(c.ES[r],c.D[r],st.status):clamp((t.prog||0)/100,0,1);if(p>0){g.fillStyle='rgba(0,0,0,.32)';g.fillRect(x1,yc-2,w*p,4);}
+      if((t.extra||0)!==0){g.fillStyle=COL.acc;g.fillRect(x1+w-Math.min(w,Math.max(0,t.extra)*dw),yc-7,Math.min(w,Math.max(0,t.extra)*dw),3);}
+      gGeo.bars[r]={x0:x1,x1:x1+w,y0:yc-7,y1:yc+6};
+      const lab=Object.keys(t.res).filter(k=>t.res[k]>0).map(k=>k+(t.res[k]!==1?' '+nf(t.res[k],t.res[k]%1?1:0):'')).join(', ');
+      g.font='12px Barlow, sans-serif';g.fillStyle=COL.muted;g.textAlign='left';g.textBaseline='middle';const lx=Math.max(x1+w,c.TF[r]>1e-6?X(c.LF[r]):0)+5;if(lab&&lx+20<W)g.fillText(ellipsis(g,lab,W-lx-4),lx,yc);}
+    else{const x1=X(c.ES[r]);g.fillStyle=col;g.beginPath();g.moveTo(x1,yc-7);g.lineTo(x1+7,yc);g.lineTo(x1,yc+7);g.lineTo(x1-7,yc);g.closePath();g.fill();
+      gGeo.bars[r]={x0:x1-7,x1:x1+7,y0:yc-7,y1:yc+7,ms:1};
+      g.font='12px Barlow, sans-serif';g.fillStyle=COL.ink;g.textAlign='left';g.textBaseline='middle';g.fillText(fD(endDate(st,c.EF[r]),'s'),x1+10,yc);}}
+  // pystyviivat
+  const yb=head+rowH*n;
+  vline(g,X(st.status),head,yb,COL.acc,[],2);tag(g,X(st.status),yb+4,tr('Tilanne','Status'),COL.acc);
+  vline(g,X(dl),head,yb,COL.warn,[6,4],1.6);tag(g,X(dl),yb+4+(Math.abs(X(dl)-X(st.status))<60?0:0),tr('Tavoite','Target'),COL.warn);
+  if(st.base&&Math.abs(st.base.fin-c.fin)>1e-6)vline(g,X(st.base.fin),head,yb,COL.muted,[2,3],1.2);
+  cv.style.cursor='default';
+  $('#legG').innerHTML=[[COL.c1,tr('Kriittinen tehtävä','Critical task'),'sw'],[COL.c2,tr('Ei-kriittinen tehtävä','Non-critical task'),'sw'],[alpha(COL.muted,.45),tr('Perustaso','Baseline'),''],
+    [COL.muted,tr('Kokonaispelivara (LF asti)','Total float (to LF)'),''],[COL.acc,tr('Viive / lisäkesto','Delay / extra duration'),'ds'],['rgba(0,0,0,.32)',tr('Valmiusaste','Progress'),''],[COL.warn,tr('Tavoitepäivä','Target date'),'ds'],[COL.acc,tr('Tilannepäivä','Status date'),'']]
+    .map(([cl,t,k])=>`<span><i class="${k}" style="background:${k==='ds'?'none':cl};color:${cl}"></i>${esc(t)}</span>`).join('');}
+function gHit(e){const cv=$('#cvG'),r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
+function gRow(y){if(!gGeo)return -1;const r=Math.floor((y-gGeo.head)/gGeo.rowH);return r>=0&&r<S.tasks.length?r:-1;}
+function gMode(x,y,r){const b=gGeo&&gGeo.bars[r];if(!b||x<gGeo.leftW||y<b.y0-5||y>b.y1+5||x<b.x0-6||x>b.x1+7)return null;if(!b.ms&&x>=b.x1-7)return'd';return'm';}
+{const cv=$('#cvG');let raf=0;
+  cv.addEventListener('pointerdown',e=>{const {x,y}=gHit(e),r=gRow(y);if(r<0)return;const t=S.tasks[r],m=gMode(x,y,r);
+    if(selId!==t.id){selId=t.id;renderCtl();}
+    if(m){drag={r,m,x0:x,snap:JSON.stringify(S),o:m==='d'?(t.extra||0):(t.slip||0),dw:gGeo.dw,ch:false};cv.setPointerCapture(e.pointerId);e.preventDefault();}
+    render();});
+  cv.addEventListener('pointermove',e=>{const {x,y}=gHit(e);
+    if(!drag){const r=gRow(y),m=r>=0?gMode(x,y,r):null;cv.style.cursor=m==='d'?'ew-resize':m==='m'?'grab':'default';return;}
+    const dd=Math.round((x-drag.x0)/drag.dw),t=S.tasks[drag.r];
+    if(drag.m==='d'){const v=Math.max(-t.d,drag.o+dd);if(v!==t.extra){t.extra=v;drag.ch=true;}}else{const v=Math.max(0,drag.o+dd);if(v!==t.slip){t.slip=v;drag.ch=true;}}
+    cv.style.cursor=drag.m==='d'?'ew-resize':'grabbing';
+    if(!raf)raf=requestAnimationFrame(()=>{raf=0;CUR=compute(S);updCtl();render();});});
+  const end=()=>{if(!drag)return;const d=drag;drag=null;if(d.ch){hist.push(d.snap);if(hist.length>60)hist.shift();}after();};
+  cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);}
+
+/* valitun tehtävän myöhästymisen vaikutus */
+function drawImpact(){const i=selIdx(),cv=$('#cvI');$('#impTitle').textContent=tr('Valitun tehtävän myöhästymisen vaikutus projektin loppuun','Effect of a delay in the selected task on the project finish');
+  if(i<0){prep(cv);$('#impTxt').textContent='';return;}
+  const t=S.tasks[i],c=CUR,tf=c.TF[i],maxd=Math.min(60,Math.max(10,Math.ceil(tf)+10));const st=clone(S),base=c.fin,o=st.tasks[i].extra||0,ys=[];
+  for(let k=0;k<=maxd;k++){st.tasks[i].extra=o+k;ys.push(compute(st,null,true).fin-base);}
+  const {g,w,h}=prep(cv),L=44,R=10,T=10,B=26,pw=w-L-R,ph=h-T-B,ymax=niceMax(Math.max(5,ys[maxd]));
+  const X=k=>L+k/maxd*pw,Y=v=>T+ph-v/ymax*ph;
+  g.fillStyle=alpha(COL.ok,.12);const tfx=X(Math.min(maxd,tf));g.fillRect(L,T,tfx-L,ph);
+  g.strokeStyle=COL.grid2;g.fillStyle=COL.muted;g.textAlign='right';g.textBaseline='middle';
+  for(let k=0;k<=4;k++){const v=ymax*k/4,y=Y(v);g.beginPath();g.moveTo(L,y);g.lineTo(L+pw,y);g.stroke();g.fillText(nf(v,0),L-5,y);}
+  g.textAlign='center';g.textBaseline='top';const st5=maxd>30?10:5;for(let k=0;k<=maxd;k+=st5)g.fillText(nf(k,0),X(k),T+ph+4);
+  g.fillText(tr('myöhästyminen, työpv','delay, working days'),L+pw/2,T+ph+13);
+  g.save();g.translate(11,T+ph/2);g.rotate(-Math.PI/2);g.fillText(tr('loppu siirtyy, pv','finish moves, d'),0,-6);g.restore();
+  g.strokeStyle=COL.c1;g.lineWidth=2;g.beginPath();ys.forEach((v,k)=>k?g.lineTo(X(k),Y(v)):g.moveTo(X(k),Y(v)));g.stroke();
+  const fk=ys.findIndex(v=>v>1e-6);
+  $('#impTxt').innerHTML=esc(`${t.id} ${L2(t.n)}: `)+
+    (fk<0?tr(`ei vaikutusta ${maxd} työpäivän myöhästymiseen asti.`,`no effect up to a ${maxd}-day delay.`)
+    :tr(`kokonaispelivara ${nf(tf,0)} pv ja vapaa pelivara ${nf(c.FF[i],0)} pv. Myöhästyminen siirtää projektin loppua vasta, kun se ylittää ${nf(fk-1,0)} pv; ${maxd} pv myöhästyminen siirtää loppua ${nf(ys[maxd],0)} pv. Vihreä alue = pelivara.`,
+        `total float ${nf(tf,0)} d and free float ${nf(c.FF[i],0)} d. A delay moves the project finish only when it exceeds ${nf(fk-1,0)} d; a ${maxd}-day delay moves the finish by ${nf(ys[maxd],0)} d. Green area = float.`));}
+
+function baseTable(){const st=S,c=CUR,dl=dlIdx(st),B=st.base,lo=loads(st,c),hrs=c.hours.reduce((a,b)=>a+b,0);
+  const s=startDate(st,0),f=endDate(st,c.fin),cal=Math.round((f-s)/864e5)+1;
+  const rows=[['h',tr('Aikataulu','Schedule')],
+    [tr('Kesto','Duration'),`${nf(c.fin,0)} ${tr('työpv','w.d.')} (${cal} ${tr('kalenteripv','cal. d')})`],
+    [tr('Alku','Start'),fD(s,'l')],[tr('Arvioitu valmistuminen','Forecast finish'),fD(f,'l')],
+    [tr('Perustason valmistuminen','Baseline finish'),B?fD(endDate(st,B.fin),'l')+` (${sgnD(c.fin-B.fin)} ${tr('pv','d')})`:'–'],
+    [tr('Tavoitepäivä','Target date'),fD(endDate(st,dl),'l')],
+    [tr('Ero tavoitteeseen','Margin to target'),`<span class="${c.fin<=dl?'good':'bad'}">${c.fin<=dl?tr('pelivaraa ','margin ')+nf(dl-c.fin,0):tr('myöhässä ','late ')+nf(c.fin-dl,0)} ${tr('työpv','w.d.')}</span>`],
+    ['h',tr('Kustannukset ja työ','Cost and effort')],
+    [tr('Työtunnit yhteensä','Total work hours'),nf(hrs,0)+' h'],
+    [tr('Työkustannukset','Labour cost'),eur(c.total-st.tasks.reduce((a,t)=>a+(t.fix||0),0))],
+    [tr('Kiinteät kustannukset','Fixed cost'),eur(st.tasks.reduce((a,t)=>a+(t.fix||0),0))],
+    [tr('Suunniteltu kokonaiskustannus','Planned total cost'),eur(c.total)],
+    [tr('Perustason budjetti (BAC)','Baseline budget (BAC)'),B?eur(B.bac):'–'],
+    [tr('Budjettitavoite','Budget target'),eur(st.budget)+` <span class="${c.total<=st.budget?'good':'bad'}">(${c.total<=st.budget?tr('alittuu ','under by '):tr('ylittyy ','over by ')}${eur(Math.abs(st.budget-c.total))})</span>`],
+    ['h',tr('Rakenne','Structure')],
+    [tr('Tehtäviä / kriittisiä','Tasks / critical'),`${st.tasks.length} / ${c.crit.filter(Boolean).length}`],
+    [tr('Ylikuormitettuja resurssipäiviä','Over-allocated resource days'),`<span class="${lo.overDays?'bad':'good'}">${lo.overDays}</span>`]];
+  $('#baseRes').innerHTML=rows.map(r=>r[0]==='h'?`<tr class="h"><td colspan="2">${esc(r[1])}</td></tr>`:`<tr><td>${esc(r[0])}</td><td>${r[1]}</td></tr>`).join('');}
+
+/* ================= VERKKOKAAVIO JA CPM-TAULUKKO ================= */
+let nGeo=null;
+function drawNet(){const st=S,c=CUR,n=c.n,cv=$('#cvN');const rank=new Array(n).fill(0);
+  for(const j of c.order)for(const e of c.preds[j])if(c.pos[e.i]<c.pos[j])rank[j]=Math.max(rank[j],rank[e.i]+1);
+  const cols=[];for(const i of c.order)(cols[rank[i]]=cols[rank[i]]||[]).push(i);
+  const yi=new Array(n).fill(0);cols.forEach(col=>col.forEach((i,k)=>yi[i]=k));
+  for(let r=1;r<cols.length;r++){const col=cols[r];const bc=i=>{const ps=c.preds[i].filter(e=>rank[e.i]<r);return ps.length?ps.reduce((s,e)=>s+yi[e.i],0)/ps.length:yi[i];};
+    col.sort((a,b)=>bc(a)-bc(b));col.forEach((i,k)=>yi[i]=k);}
+  const NW=132,NH=68,GX=50,GY=22,P=14,maxR=Math.max(1,...cols.map(cl=>cl?cl.length:0));
+  const W=P*2+cols.length*NW+(cols.length-1)*GX,H=P*2+maxR*NH+(maxR-1)*GY+4;const {g}=prep(cv,Math.max(W,320),H);
+  const pos=[];cols.forEach((col,r)=>{const off=(maxR-col.length)*(NH+GY)/2;col.forEach((i,k)=>pos[i]={x:P+r*(NW+GX),y:P+off+k*(NH+GY)});});
+  nGeo={pos,NW,NH};
+  for(let j=0;j<n;j++)for(const e of c.preds[j]){const a=pos[e.i],b=pos[j];if(!a||!b)continue;
+    const binding=Math.abs(req(e,c.ES,c.EF,c.D[j])-(c.ES[j]-(st.tasks[j].slip||0)-(st.tasks[j].lvl||0)))<1e-6;const cr=c.crit[e.i]&&c.crit[j]&&binding;
+    const sx=a.x+NW,sy=a.y+NH/2,tx=b.x,ty=b.y+NH/2;g.strokeStyle=cr?COL.c1:alpha(COL.muted,.8);g.fillStyle=g.strokeStyle;g.lineWidth=cr?2:1.2;
+    g.beginPath();g.moveTo(sx,sy);const mx=(sx+tx)/2;g.bezierCurveTo(mx,sy,mx,ty,tx-6,ty);g.stroke();
+    g.beginPath();g.moveTo(tx,ty);g.lineTo(tx-7,ty-4);g.lineTo(tx-7,ty+4);g.closePath();g.fill();
+    if(e.type!=='FS'||e.lag){const lab=tLab(e.type)+(e.lag?(e.lag>0?'+':'')+e.lag:'');g.font='600 11px Barlow, sans-serif';const lw=g.measureText(lab).width+6;
+      const lx=mx-lw/2,ly=(sy+ty)/2-8;g.fillStyle=COL.paper;g.fillRect(lx,ly,lw,15);g.fillStyle=cr?COL.c1:COL.muted;g.textAlign='center';g.textBaseline='middle';g.fillText(lab,mx,ly+8);}}
+  for(let i=0;i<n;i++){const p=pos[i];if(!p)continue;const t=st.tasks[i],cr=c.crit[i];
+    g.fillStyle=t.id===selId?alpha(COL.sel,.14):COL.paper;g.strokeStyle=cr?COL.c1:COL.line;g.lineWidth=cr?2:1;
+    g.beginPath();g.rect(p.x,p.y,NW,NH);g.fill();g.stroke();g.lineWidth=1;g.strokeStyle=cr?alpha(COL.c1,.5):COL.line;
+    const r1=p.y+20,r2=p.y+NH-20,cw=NW/3;g.beginPath();g.moveTo(p.x,r1);g.lineTo(p.x+NW,r1);g.moveTo(p.x,r2);g.lineTo(p.x+NW,r2);
+    for(const k of[1,2]){g.moveTo(p.x+k*cw,p.y);g.lineTo(p.x+k*cw,r1);g.moveTo(p.x+k*cw,r2);g.lineTo(p.x+k*cw,p.y+NH);}g.stroke();
+    g.textAlign='center';g.textBaseline='middle';g.font='13px Barlow, sans-serif';g.fillStyle=COL.ink;
+    [c.ES[i],c.D[i],c.EF[i]].forEach((v,k)=>g.fillText(nf(v,0),p.x+cw*k+cw/2,p.y+10));
+    [c.LS[i],c.TF[i],c.LF[i]].forEach((v,k)=>{g.fillStyle=k===1&&cr?COL.c1:COL.ink;g.fillText(nf(v,0),p.x+cw*k+cw/2,p.y+NH-10);});
+    g.font='600 13px Barlow, sans-serif';g.fillStyle=cr?COL.c1:COL.ink;g.textAlign='left';g.fillText(t.id,p.x+6,p.y+NH/2);
+    g.font='12px Barlow, sans-serif';g.fillStyle=COL.ink;g.fillText(ellipsis(g,L2(t.n),NW-30),p.x+24,p.y+NH/2);}
+  $('#legN').innerHTML=`<span>${esc(tr('Solmu:','Node:'))} <b>ES | ${esc(tr('kesto','duration'))} | EF</b> / ${esc(tr('nimi','name'))} / <b>LS | TF | LF</b></span><span><i style="background:${COL.c1}"></i>${esc(tr('Kriittinen polku','Critical path'))}</span><span>${esc(tr('Nuolen merkintä: riippuvuustyyppi ja viive, jos muu kuin LA+0','Arrow label: dependency type and lag when not FS+0').replace('LA+0',lang==='en'?'FS+0':'LA+0'))}</span>`;}
+$('#cvN').addEventListener('click',e=>{if(!nGeo)return;const r=e.target.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+  nGeo.pos.forEach((p,i)=>{if(p&&x>=p.x&&x<=p.x+nGeo.NW&&y>=p.y&&y<=p.y+nGeo.NH){selId=S.tasks[i].id;renderCtl();render();}});});
+function cpmTable(){const st=S,c=CUR;const h=[tr('Tunnus','ID'),tr('Tehtävä','Task'),tr('Kesto','Dur.'),tr('Edeltäjät','Predecessors'),'ES','EF','LS','LF','TF','FF',tr('Alku','Start'),tr('Loppu','Finish'),'O / M / P','tₑ','σ',tr('Kustannus','Cost')];
+  const num=new Set([2,4,5,6,7,8,9,12,13,14,15]);
+  const body=st.tasks.map((t,i)=>{const m=c.D[i],ex=t.extra||0,o=Math.min(m,Math.max(0,(t.o??t.d)+ex)),p=Math.max(m,(t.p??t.d)+ex),te=(o+4*m+p)/6;
+    return `<tr class="ck${c.crit[i]?' crit':''}${t.id===selId?' sel':''}" data-id="${esc(t.id)}"><td>${esc(t.id)}</td><td>${esc(L2(t.n))}</td><td class="r">${nf(m,0)}</td><td>${esc(predStr(t.pred))}</td>`+
+    [c.ES[i],c.EF[i],c.LS[i],c.LF[i],c.TF[i],c.FF[i]].map((v,k)=>`<td class="r${k===4&&c.crit[i]?' bad':''}">${nf(v,0)}</td>`).join('')+
+    `<td>${m>0?fD(startDate(st,c.ES[i]),'s'):''}</td><td>${fD(endDate(st,c.EF[i]),'s')}</td><td class="r">${nf(o,0)} / ${nf(m,0)} / ${nf(p,0)}</td><td class="r">${nf(te,1)}</td><td class="r">${nf((p-o)/6,2)}</td><td class="r">${eur(c.cost[i])}</td></tr>`;}).join('');
+  $('#cpmTbl').innerHTML=`<thead><tr>${h.map((x,k)=>`<th class="${num.has(k)?'r':''}">${esc(x)}</th>`).join('')}</tr></thead><tbody>${body}</tbody>`;
+  $('#cpmNote').textContent=tr(`ES = aikaisin alku, EF = aikaisin loppu, LS = myöhäisin alku, LF = myöhäisin loppu (päivänumeroina, 0 = ensimmäisen työpäivän alku). TF = LS − ES on kokonaispelivara, FF vapaa pelivara (myöhästyminen, joka ei siirrä yhtään seuraajaa). Kriittinen ketju: ${c.chain.map(i=>st.tasks[i].id).join(' → ')}. tₑ = (O + 4M + P)/6 ja σ = (P − O)/6 (PERT).`,
+    `ES = early start, EF = early finish, LS = late start, LF = late finish (day numbers, 0 = start of the first working day). TF = LS − ES is total float, FF free float (a delay that moves no successor). Critical chain: ${c.chain.map(i=>st.tasks[i].id).join(' → ')}. tₑ = (O + 4M + P)/6 and σ = (P − O)/6 (PERT).`);}
+$('#cpmTbl').addEventListener('click',e=>{const tr_=e.target.closest('tr[data-id]');if(tr_){selId=tr_.dataset.id;renderCtl();render();}});
+
+/* ================= RESURSSIT ================= */
+function drawRes(){const st=S,c=CUR,lo=loads(st,c),cv=$('#cvR'),box=cv.parentElement;const narrow=box.clientWidth<620,leftW=narrow?110:190,rowH=96,maxDay=Math.ceil(c.fin)+2;
+  const dw=Math.max(3,(box.clientWidth-leftW-14)/maxDay),W=Math.ceil(leftW+dw*maxDay+10),H=st.res.length*rowH+22;const {g}=prep(cv,W,H);
+  st.res.forEach((R,k)=>{const y0=k*rowH+6,ph=rowH-22,arr=lo.L[R.id],ymax=Math.max(R.cap*1.5,lo.peak[R.id]*1.1,1);const Y=v=>y0+ph-v/ymax*ph;
+    g.fillStyle=COL.ink;g.font='600 13px Barlow, sans-serif';g.textAlign='left';g.textBaseline='top';g.fillText(ellipsis(g,R.id+' '+L2(R.n),leftW-10),6,y0+4);
+    g.font='12px Barlow, sans-serif';g.fillStyle=lo.over[R.id]?COL.warn:COL.muted;g.fillText(tr(`kapasiteetti ${nf(R.cap,R.cap%1?1:0)}`,`capacity ${nf(R.cap,R.cap%1?1:0)}`),6,y0+22);
+    g.fillText(lo.over[R.id]?tr(`ylikuormitus ${lo.over[R.id]} pv`,`over-allocated ${lo.over[R.id]} d`):tr(`huippu ${nf(lo.peak[R.id],1)}`,`peak ${nf(lo.peak[R.id],1)}`),6,y0+38);
+    g.strokeStyle=COL.grid2;g.beginPath();g.moveTo(leftW,y0+ph+.5);g.lineTo(W,y0+ph+.5);g.stroke();
+    for(let d=0;d<arr.length;d++){const v=arr[d];if(!v)continue;const x=leftW+d*dw,w=Math.max(1,dw-(dw>5?1:0));
+      g.fillStyle=COL.c2;g.fillRect(x,Y(Math.min(v,R.cap)),w,Y(0)-Y(Math.min(v,R.cap)));if(v>R.cap+1e-9){g.fillStyle=COL.warn;g.fillRect(x,Y(v),w,Y(R.cap)-Y(v));}}
+    g.save();g.strokeStyle=COL.ink;g.setLineDash([5,3]);g.beginPath();g.moveTo(leftW,Y(R.cap)+.5);g.lineTo(W,Y(R.cap)+.5);g.stroke();g.restore();});
+  xTicks(g,leftW,dw,maxDay,0,H-20,true);
+  vline(g,leftW+st.status*dw,0,H-20,COL.acc,[],1.5);
+  $('#legR').innerHTML=`<span><i class="sw" style="background:${COL.c2}"></i>${esc(tr('Kuormitus','Load'))}</span><span><i class="sw" style="background:${COL.warn}"></i>${esc(tr('Kapasiteetin ylitys','Over capacity'))}</span><span><i class="ds" style="color:${COL.ink}"></i>${esc(tr('Kapasiteetti','Capacity'))}</span>`;}
+function resTable(){const st=S,c=CUR,lo=loads(st,c);const by={};st.res.forEach(r=>by[r.id]={h:0,cost:0});
+  st.tasks.forEach((t,i)=>{for(const r in t.res){if(!by[r])continue;const h=(t.res[r]||0)*c.D[i]*st.hpd;by[r].h+=h;by[r].cost+=h*resMap(st)[r].rate;}});
+  const h=[tr('Tunnus','ID'),tr('Resurssi','Resource'),tr('Kapasiteetti','Capacity'),tr('€/h','€/h'),tr('Tunnit','Hours'),tr('Kustannus','Cost'),tr('Huippukuorma','Peak load'),tr('Ylikuorm. pv','Over-alloc. d')];
+  $('#resTbl').innerHTML=`<thead><tr>${h.map((x,k)=>`<th class="${k>1?'r':''}">${esc(x)}</th>`).join('')}</tr></thead><tbody>`+st.res.map(R=>`<tr><td>${esc(R.id)}</td><td>${esc(L2(R.n))}</td>
+    <td class="r"><input type="number" min="0.5" step="0.5" value="${R.cap}" data-rc="${esc(R.id)}" aria-label="${esc(tr('Kapasiteetti','Capacity'))} ${esc(R.id)}"></td>
+    <td class="r"><input type="number" min="0" step="1" value="${R.rate}" data-rr="${esc(R.id)}" aria-label="€/h ${esc(R.id)}"></td>
+    <td class="r">${nf(by[R.id].h,0)}</td><td class="r">${eur(by[R.id].cost)}</td><td class="r">${nf(lo.peak[R.id],1)}</td><td class="r${lo.over[R.id]?' bad':''}">${lo.over[R.id]}</td></tr>`).join('')+
+    `</tbody><tfoot><tr><td></td><td>${esc(tr('Yhteensä','Total'))}</td><td></td><td></td><td class="r">${nf(Object.values(by).reduce((a,b)=>a+b.h,0),0)}</td><td class="r">${eur(Object.values(by).reduce((a,b)=>a+b.cost,0))}</td><td></td><td class="r">${lo.overDays}</td></tr></tfoot>`;}
+$('#resTbl').addEventListener('change',e=>{const el=e.target,v=num(el.value);if(!Number.isFinite(v)||v<0)return;
+  if(el.dataset.rc)change(()=>{S.res.find(r=>r.id===el.dataset.rc).cap=Math.max(0.5,v);});
+  if(el.dataset.rr)change(()=>{S.res.find(r=>r.id===el.dataset.rr).rate=v;});});
+
+/* ================= ANSAITTU ARVO ================= */
+function drawEVM(){const st=S,c=CUR,E=evm(st,c),cv=$('#cvS'),{g,w,h}=prep(cv);const L=56,R=12,T=12,B=30,pw=w-L-R,ph=h-T-B;
+  const tmax=Math.ceil(Math.max(c.fin,E.B.fin,dlIdx(st),st.status,Number.isFinite(E.IEACt)?E.IEACt:0))+2;
+  const ymax=niceMax(Math.max(E.BAC,c.total,st.budget,Number.isFinite(E.EAC)?E.EAC:0)*1.05);const X=t=>L+t/tmax*pw,Y=v=>T+ph-v/ymax*ph;
+  g.textAlign='right';g.textBaseline='middle';for(let k=0;k<=5;k++){const v=ymax*k/5;g.strokeStyle=COL.grid2;g.beginPath();g.moveTo(L,Y(v)+.5);g.lineTo(L+pw,Y(v)+.5);g.stroke();g.fillStyle=COL.muted;g.fillText(kEur(v),L-5,Y(v));}
+  xTicks(g,L,pw/tmax,tmax,T,T+ph,true);
+  const line=(f,t0,t1,col,dash,lw)=>{g.save();g.strokeStyle=col;g.lineWidth=lw||2;g.setLineDash(dash||[]);g.beginPath();for(let k=0;k<=80;k++){const t=t0+(t1-t0)*k/80;const y=Y(f(t));k?g.lineTo(X(t),y):g.moveTo(X(t),y);}g.stroke();g.restore();};
+  const hl=(v,col,dash)=>{g.save();g.strokeStyle=col;g.setLineDash(dash);g.beginPath();g.moveTo(L,Y(v)+.5);g.lineTo(L+pw,Y(v)+.5);g.stroke();g.restore();};
+  hl(E.BAC,COL.muted,[2,3]);hl(st.budget,COL.warn,[6,4]);
+  line(E.PVb,0,tmax,COL.c2,[],2);
+  const pc=t=>st.tasks.reduce((a,k,i)=>a+c.cost[i]*frac(c.ES[i],c.D[i],t),0);line(pc,0,tmax,COL.c4,[5,4],1.6);
+  const S0=st.status;if(S0>0){const evA=t=>st.tasks.reduce((a,k,i)=>a+E.rows[i].bac*frac(c.ES[i],c.D[i],t),0),acA=t=>st.tasks.reduce((a,k,i)=>a+c.cost[i]*(k.acf??1)*frac(c.ES[i],c.D[i],t),0);
+    const se=evA(S0)>0?E.EV/evA(S0):0,sa=acA(S0)>0?E.AC/acA(S0):0;line(t=>evA(t)*se,0,S0,COL.c3,[],2.4);line(t=>acA(t)*sa,0,S0,COL.c1,[],2.4);
+    if(Number.isFinite(E.EAC)){g.save();g.strokeStyle=COL.c1;g.setLineDash([4,4]);g.lineWidth=1.6;g.beginPath();g.moveTo(X(S0),Y(E.AC));g.lineTo(X(Math.max(c.fin,S0)),Y(E.EAC));g.stroke();g.restore();
+      g.fillStyle=COL.c1;g.beginPath();g.arc(X(Math.max(c.fin,S0)),Y(E.EAC),3.5,0,7);g.fill();}}
+  vline(g,X(S0),T,T+ph,COL.acc,[],1.6);vline(g,X(dlIdx(st)),T,T+ph,COL.warn,[6,4],1.4);
+  g.fillStyle=COL.muted;g.textAlign='left';g.textBaseline='bottom';g.fillText('BAC',L+4,Y(E.BAC)-2);g.fillStyle=COL.warn;g.fillText(tr('budjetti','budget'),L+34,Y(st.budget)-2);
+  $('#legS').innerHTML=[[COL.c2,'PV '+tr('(perustaso)','(baseline)'),''],[COL.c4,tr('Nykyinen suunnitelma','Current plan'),'ds'],[COL.c3,'EV',''],[COL.c1,'AC',''],[COL.c1,tr('Ennuste → EAC','Forecast → EAC'),'ds'],[COL.warn,tr('Budjetti ja tavoitepäivä','Budget and target date'),'ds'],[COL.acc,tr('Tilannepäivä','Status date'),'']]
+    .map(([cl,t,k])=>`<span><i class="${k}" style="background:${k==='ds'?'none':cl};color:${cl}"></i>${esc(t)}</span>`).join('');
+  // taulukko
+  const r2=x=>nf(x,2);const dl=dlIdx(st);
+  const rows=[['h',tr('Tilanne','Status')],[tr('Tilannepäivä','Status date'),S0>0?`${fD(endDate(st,S0),'l')} (${S0} ${tr('työpv','w.d.')})`:tr('ennen alkua','before start')],
+    ['BAC',eur(E.BAC)],['PV',eur(E.PV)],['EV',eur(E.EV)],['AC',eur(E.AC)],
+    ['h',tr('Poikkeamat ja indeksit','Variances and indices')],['SV = EV − PV',eur(E.SV)],['CV = EV − AC',eur(E.CV)],['SPI = EV / PV',r2(E.SPI)],['CPI = EV / AC',r2(E.CPI)],
+    ['SPI(t) = ES / AT',r2(E.SPIt)+(Number.isFinite(E.ESt)?` (ES ${nf(E.ESt,1)} ${tr('pv','d')})`:'')],
+    ['h',tr('Ennuste','Forecast')],['EAC',eur(E.EAC)],['ETC = EAC − AC',eur(E.ETC)],['VAC = BAC − EAC',eur(E.VAC)],['TCPI (BAC)',r2(E.TCPI)],[tr('TCPI (budjettitavoite)','TCPI (budget target)'),r2(E.TCPIb)],
+    ['IEAC(t) = PD / SPI(t)',Number.isFinite(E.IEACt)?`${nf(E.IEACt,1)} ${tr('työpv','w.d.')} → ${fD(endDate(st,E.IEACt),'')}`:'–'],
+    [tr('Nykyisen aikataulun loppu','Current schedule finish'),`${nf(c.fin,0)} ${tr('työpv','w.d.')} → ${fD(endDate(st,c.fin),'')}`]];
+  $('#evmRes').innerHTML=rows.map(r=>r[0]==='h'?`<tr class="h"><td colspan="2">${esc(r[1])}</td></tr>`:`<tr><td>${esc(r[0])}</td><td>${r[1]}</td></tr>`).join('');
+  const P=[];if(S0<=0)P.push(tr('Siirrä tilannepäivää vasemman paneelin liukusäätimellä, niin näet seurannan tunnusluvut.','Move the status date slider in the left panel to see the tracking figures.'));
+  else{const s=E.SPI,cpi=E.CPI;
+    P.push(Number.isFinite(s)?(s<0.95?tr(`SPI ${r2(s)}: työtä on tehty vähemmän kuin suunniteltu – projekti on aikataulusta jäljessä.`,`SPI ${r2(s)}: less work done than planned – the project is behind schedule.`):s>1.05?tr(`SPI ${r2(s)}: työtä on tehty suunniteltua enemmän – projekti on edellä aikataulua.`,`SPI ${r2(s)}: more work done than planned – ahead of schedule.`):tr(`SPI ${r2(s)}: eteneminen vastaa suunnitelmaa.`,`SPI ${r2(s)}: progress is on plan.`)):'');
+    P.push(Number.isFinite(cpi)?(cpi<0.95?tr(`CPI ${r2(cpi)}: tehty työ on maksanut suunniteltua enemmän. Jos tehokkuus säilyy, loppukustannus on ${eur(E.EAC)}.`,`CPI ${r2(cpi)}: the work done has cost more than planned. If this efficiency continues, the final cost is ${eur(E.EAC)}.`):cpi>1.05?tr(`CPI ${r2(cpi)}: tehty työ on maksanut suunniteltua vähemmän.`,`CPI ${r2(cpi)}: the work done has cost less than planned.`):tr(`CPI ${r2(cpi)}: kustannukset vastaavat suunnitelmaa.`,`CPI ${r2(cpi)}: costs are on plan.`)):'');
+    P.push(E.EAC>st.budget?tr(`Ennustettu loppukustannus ylittää budjettitavoitteen ${eur(E.EAC-st.budget)}. Budjettiin pääseminen vaatii jäljellä olevalta työltä kustannustehokkuuden TCPI = ${r2(E.TCPIb)}.`,`The forecast final cost exceeds the budget target by ${eur(E.EAC-st.budget)}. Meeting the budget requires a cost efficiency of TCPI = ${r2(E.TCPIb)} for the remaining work.`):tr('Ennustettu loppukustannus mahtuu budjettitavoitteeseen.','The forecast final cost fits within the budget target.'));
+    if(S0>=E.B.fin)P.push(tr('Huom: tilannepäivä on perustason lopun jälkeen, joten PV = BAC ja SPI lähestyy arvoa 1 myöhästymisestä huolimatta. Käytä aikataulun seurantaan SPI(t):tä.','Note: the status date is past the baseline finish, so PV = BAC and SPI tends to 1 despite the delay. Use SPI(t) for schedule tracking.'));}
+  $('#evmInt').innerHTML=P.filter(Boolean).map(p=>`<p>${esc(p)}</p>`).join('');
+  const hd=[tr('Tunnus','ID'),tr('Tehtävä','Task'),'BAC','PV','EV','AC','SV','CV',tr('Valmius','Done')];
+  $('#evmTbl').innerHTML=`<thead><tr>${hd.map((x,k)=>`<th class="${k>1?'r':''}">${esc(x)}</th>`).join('')}</tr></thead><tbody>`+st.tasks.map((t,i)=>{const r=E.rows[i];
+    return `<tr class="ck${c.crit[i]?' crit':''}${t.id===selId?' sel':''}" data-id="${esc(t.id)}"><td>${esc(t.id)}</td><td>${esc(L2(t.n))}</td><td class="r">${eur(r.bac)}</td><td class="r">${eur(r.pv)}</td><td class="r">${eur(r.ev)}</td><td class="r">${eur(r.ac)}</td><td class="r${r.ev-r.pv<-0.5?' bad':''}">${eur(r.ev-r.pv)}</td><td class="r${r.ev-r.ac<-0.5?' bad':''}">${eur(r.ev-r.ac)}</td><td class="r">${pct(r.p)}</td></tr>`;}).join('')+
+    `</tbody><tfoot><tr><td></td><td>${esc(tr('Yhteensä','Total'))}</td><td class="r">${eur(E.rows.reduce((a,r)=>a+r.bac,0))}</td><td class="r">${eur(E.PV)}</td><td class="r">${eur(E.EV)}</td><td class="r">${eur(E.AC)}</td><td class="r">${eur(E.SV)}</td><td class="r">${eur(E.CV)}</td><td class="r">${pct(E.BAC>0?E.EV/E.BAC:NaN)}</td></tr></tfoot>`;
+  const by=st.res.map(R=>({R,v:st.tasks.reduce((a,t,i)=>a+(t.res[R.id]||0)*c.D[i]*st.hpd*R.rate,0)}));by.push({R:{id:'',n:[tr('Kiinteät kustannukset','Fixed costs'),tr('Kiinteät kustannukset','Fixed costs')]},v:st.tasks.reduce((a,t)=>a+(t.fix||0),0)});
+  const mx=Math.max(1,...by.map(b=>b.v));$('#costBars').innerHTML=by.map(b=>`<div class="hbar"><span class="nm">${esc((b.R.id?b.R.id+' ':'')+L2(b.R.n))}</span><span class="tk"><i style="width:${(b.v/mx*100).toFixed(1)}%"></i></span><span class="v">${eur(b.v)}</span></div>`).join('');}
+$('#evmTbl').addEventListener('click',e=>{const r=e.target.closest('tr[data-id]');if(r){selId=r.dataset.id;renderCtl();render();}});
+
+/* ================= ENNUSTE (MONTE CARLO + PERT) ================= */
+function drawMC(force){const st=S,c=CUR,dl=dlIdx(st),N=+$('#mcN').value;
+  const key=JSON.stringify([st.tasks.map(t=>[t.id,t.d,t.o,t.p,t.extra,t.slip,t.lvl,t.pred]),st.start,st.week,st.hol,N]);
+  if(force||mcCache.key!==key){mcCache={key,r:monteCarlo(st,N,dl)};}
+  const M=mcCache.r,PE=pert(st,c,dl),cv=$('#cvM'),{g,w,h}=prep(cv);const L=44,R=44,T=14,B=30,pw=w-L-R,ph=h-T-B;
+  const lo=Math.floor(Math.min(M.s[0],dl,c.fin))-1,hi=Math.ceil(Math.max(M.s[M.N-1],dl,c.fin))+1,nb=hi-lo,bins=new Array(nb).fill(0);
+  for(const f of M.s)bins[clamp(Math.ceil(f-1e-9)-lo-1,0,nb-1)]++;
+  const bmax=Math.max(...bins),X=v=>L+(v-lo)/nb*pw;const yb=niceMax(bmax/M.N);
+  g.textAlign='right';g.textBaseline='middle';for(let k=0;k<=4;k++){const y=T+ph-ph*k/4;g.strokeStyle=COL.grid2;g.beginPath();g.moveTo(L,y+.5);g.lineTo(L+pw,y+.5);g.stroke();g.fillStyle=COL.muted;g.fillText(pct(yb*k/4,yb<=0.2?1:0),L-4,y);g.textAlign='left';g.fillText(pct(k/4),L+pw+4,y);g.textAlign='right';}
+  bins.forEach((v,k)=>{const x=X(lo+k),bw=pw/nb;const hh=v/M.N/yb*ph;g.fillStyle=(lo+k+1)<=dl?alpha(COL.c2,.75):alpha(COL.warn,.7);g.fillRect(x+.5,T+ph-hh,Math.max(1,bw-1),hh);});
+  g.strokeStyle=COL.ink;g.lineWidth=2;g.beginPath();let cum=0;bins.forEach((v,k)=>{cum+=v;const y=T+ph-cum/M.N*ph;k?g.lineTo(X(lo+k+1),y):(g.moveTo(X(lo),T+ph),g.lineTo(X(lo+1),y));});g.stroke();
+  g.fillStyle=COL.muted;g.textAlign='center';g.textBaseline='top';const step=Math.max(1,Math.ceil(nb/10));for(let v=lo;v<=hi;v+=step)g.fillText(nf(v,0),X(v),T+ph+4);
+  g.fillText(tr('projektin kesto, työpv','project duration, working days'),L+pw/2,T+ph+16);
+  vline(g,X(dl),T,T+ph,COL.warn,[6,4],1.6);tag(g,X(dl),T-12,tr('tavoite','target'),COL.warn);
+  vline(g,X(c.fin),T,T+ph,COL.c1,[2,3],1.4);vline(g,X(M.p80),T,T+ph,COL.acc,[],1.6);tag(g,X(M.p80),T+ph-18,'P80',COL.acc);
+  $('#legM').innerHTML=`<span><i class="sw" style="background:${alpha(COL.c2,.75)}"></i>${esc(tr('Valmis tavoitteeseen mennessä','Done by the target'))}</span><span><i class="sw" style="background:${alpha(COL.warn,.7)}"></i>${esc(tr('Myöhässä','Late'))}</span><span><i style="background:${COL.ink}"></i>${esc(tr('Kertymä (oikea akseli)','Cumulative (right axis)'))}</span><span><i class="ds" style="color:${COL.c1}"></i>${esc(tr('Deterministinen aikataulu','Deterministic schedule'))}</span>`;
+  const dd=v=>`${nf(v,1)} ${tr('työpv','w.d.')} · ${fD(endDate(st,v),'')}`;
+  const rows=[['h',tr('Tavoite','Target')],[tr('Tavoitepäivä','Target date'),`${dl} ${tr('työpv','w.d.')} · ${fD(endDate(st,dl),'')}`],
+    [tr('Deterministinen aikataulu (M)','Deterministic schedule (M)'),dd(c.fin)],
+    ['h',`Monte Carlo (N = ${M.N})`],[tr('Keskiarvo','Mean'),dd(M.mean)],['P10',dd(M.p10)],['P50',dd(M.p50)],['P80',dd(M.p80)],['P90',dd(M.p90)],
+    [tr('Todennäköisyys valmistua tavoitteeseen mennessä','Probability of finishing by the target'),`<span class="${M.P>=0.8?'good':M.P<0.5?'bad':''}">${pct(M.P,1)}</span>`],
+    [tr('Todennäköisyys pysyä deterministisessä aikataulussa','Probability of meeting the deterministic schedule'),pct(M.s.filter(f=>f<=c.fin+1e-9).length/M.N,1)],
+    ['h',tr('PERT (kriittinen ketju)','PERT (critical chain)')],[tr('Odotusarvo Tₑ','Expected Tₑ'),dd(PE.Te)],[tr('Keskihajonta σ','Std deviation σ'),`${nf(PE.sd,2)} ${tr('pv','d')}`],
+    [tr('z = (tavoite − Tₑ) / σ','z = (target − Tₑ) / σ'),PE.sd>0?nf((dl-PE.Te)/PE.sd,2):'–'],[tr('Todennäköisyys Φ(z)','Probability Φ(z)'),pct(PE.P,1)]];
+  $('#mcRes').innerHTML=rows.map(r=>r[0]==='h'?`<tr class="h"><td colspan="2">${esc(r[1])}</td></tr>`:`<tr><td>${esc(r[0])}</td><td>${r[1]}</td></tr>`).join('');
+  $('#mcNote').textContent=tr('Kestot arvotaan kolmiojakaumasta (O, M, P), jossa M on tehtävän nykyinen kesto ja lisäkesto siirtää myös O:ta ja P:tä. Siemenluku on kiinteä, joten tulos toistuu samana. PERT laskee vain yhden ketjun eikä huomioi rinnakkaisten polkujen yhdistymistä, joten se antaa yleensä Monte Carloa optimistisemman tuloksen.',
+    'Durations are drawn from a triangular distribution (O, M, P), where M is the current duration; extra duration also shifts O and P. The seed is fixed, so the result repeats. PERT uses only one chain and ignores the merging of parallel paths, so it is usually more optimistic than Monte Carlo.');
+  const ci=st.tasks.map((t,i)=>({t,i,v:M.crit[i]})).filter(o=>CUR.D[o.i]>0).sort((a,b)=>b.v-a.v);
+  $('#critBars').innerHTML=ci.map(o=>`<div class="hbar"><span class="nm">${esc(o.t.id+' '+L2(o.t.n))}</span><span class="tk"><i class="${o.v>=0.5?'c':''}" style="width:${(o.v*100).toFixed(1)}%"></i></span><span class="v">${pct(o.v)}</span></div>`).join('');}
+$('#mcRun').addEventListener('click',()=>drawMC(true));$('#mcN').addEventListener('change',()=>drawMC(true));
+
+/* ================= HARJOITUKSET ================= */
+function devTxt(ex){const st=fromEx(ex);return Object.entries((ex.scen||genScen(ex)).dev).map(([id,d])=>{const t=st.tasks.find(k=>k.id===id);const p=[];
+  if(d.extra)p.push(tr(`kesto pitenee ${d.extra} pv`,`duration grows by ${d.extra} d`));if(d.slip)p.push(tr(`aloitus myöhästyy ${d.slip} pv`,`start is delayed by ${d.slip} d`));if(d.acf&&d.acf!==1)p.push(tr(`toteutuneet kustannukset ${nf((d.acf-1)*100,0)} % suunniteltua suuremmat`,`actual cost ${nf((d.acf-1)*100,0)} % above plan`));
+  return `${id} ${L2(t.n)}: ${p.join(', ')}`;});}
+function buildEx(ex){const st=fromEx(ex),c=compute(st),out=[],id=i=>st.tasks[i].id,nm=i=>`${id(i)} (${L2(st.tasks[i].n)})`,dl=dlIdx(st);
+  out.push({q:tr('Laske projektin kokonaiskesto työpäivinä perussuunnitelman mukaan.','Calculate the total project duration in working days from the baseline plan.'),type:'num',ans:c.fin,tol:0,unit:tr('työpv','w.d.'),
+    sol:tr(`Eteenpäinlaskennassa jokaisen tehtävän ES on suurin edeltäjiltä tuleva vaatimus (LA: EF + viive, AA: ES + viive, LL: EF + viive − kesto, AL: ES + viive − kesto). Suurin EF = ${c.fin} työpv.`,
+      `In the forward pass each task's ES is the largest requirement from its predecessors (FS: EF + lag, SS: ES + lag, FF: EF + lag − duration, SF: ES + lag − duration). The largest EF = ${c.fin} working days.`)});
+  const cr=st.tasks.filter((t,i)=>c.crit[i]&&c.D[i]>0).map(t=>t.id);
+  out.push({q:tr('Mitkä tehtävät ovat kriittisiä (kokonaispelivara 0)? Kirjoita tunnukset pilkuilla erotettuina.','Which tasks are critical (total float 0)? Enter the IDs separated by commas.'),type:'set',ans:cr,
+    sol:tr(`Kriittiset tehtävät: ${cr.join(', ')}. Ketju lopusta alkuun määräävien riippuvuuksien kautta: ${c.chain.map(id).join(' → ')}.`,`Critical tasks: ${cr.join(', ')}. Chain through the driving links: ${c.chain.map(id).join(' → ')}.`)});
+  let xi=-1;for(let i=0;i<c.n;i++)if(!c.crit[i]&&c.D[i]>0&&c.TF[i]>=2){xi=i;break;}
+  if(xi>=0){out.push({q:tr(`Mikä on tehtävän ${nm(xi)} kokonaispelivara?`,`What is the total float of task ${nm(xi)}?`),type:'num',ans:c.TF[xi],tol:0,unit:tr('työpv','w.d.'),
+      sol:tr(`TF = LS − ES = ${nf(c.LS[xi],0)} − ${nf(c.ES[xi],0)} = ${nf(c.TF[xi],0)} pv.`,`TF = LS − ES = ${nf(c.LS[xi],0)} − ${nf(c.ES[xi],0)} = ${nf(c.TF[xi],0)} d.`)});
+    const N=Math.round(c.TF[xi])+3,s2=clone(st);s2.tasks[xi].extra=N;const c2=compute(s2,null,true);
+    out.push({q:tr(`Tehtävä ${nm(xi)} kestää ${N} työpäivää suunniteltua pidempään. Kuinka monta työpäivää koko projekti myöhästyy?`,`Task ${nm(xi)} takes ${N} working days longer than planned. By how many working days is the whole project delayed?`),type:'num',ans:c2.fin-c.fin,tol:0,unit:tr('työpv','w.d.'),
+      sol:tr(`Tehtävän pelivara on ${nf(c.TF[xi],0)} pv, joten se kuluttaa ensin pelivaran. Projekti myöhästyy ${N} − ${nf(c.TF[xi],0)} = ${nf(c2.fin-c.fin,0)} pv, ja tehtävästä tulee kriittinen.`,`The task has ${nf(c.TF[xi],0)} d of float, which is used up first. The project is delayed by ${N} − ${nf(c.TF[xi],0)} = ${nf(c2.fin-c.fin,0)} d, and the task becomes critical.`)});}
+  let fi=-1;for(let i=0;i<c.n;i++)if(c.D[i]>0&&c.TF[i]-c.FF[i]>=1&&i!==xi){fi=i;break;}if(fi<0)for(let i=0;i<c.n;i++)if(c.D[i]>0&&c.TF[i]-c.FF[i]>=1){fi=i;break;}
+  if(fi>=0)out.push({q:tr(`Tehtävän ${nm(fi)} kokonaispelivara on ${nf(c.TF[fi],0)} pv. Paljonko sen vapaa pelivara on eli kuinka paljon se voi myöhästyä siirtämättä yhtään seuraajaa?`,`Task ${nm(fi)} has ${nf(c.TF[fi],0)} d of total float. What is its free float, i.e. how much can it slip without moving any successor?`),type:'num',ans:c.FF[fi],tol:0,unit:tr('työpv','w.d.'),
+    sol:tr(`Vapaa pelivara = pienin ero seuraajan aikaisimman ajan ja tämän tehtävän asettaman vaatimuksen välillä = ${nf(c.FF[fi],0)} pv. Loput ${nf(c.TF[fi]-c.FF[fi],0)} pv kokonaispelivarasta on yhteistä seuraajien kanssa.`,`Free float = the smallest gap between a successor's early time and the requirement set by this task = ${nf(c.FF[fi],0)} d. The remaining ${nf(c.TF[fi]-c.FF[fi],0)} d of total float is shared with the successors.`)});
+  const ci=c.chain.find(i=>c.D[i]>0&&i!==c.chain[0])??c.chain[0];
+  if(ci!==undefined){const s3=clone(st);s3.tasks[ci].slip=2;const c3=compute(s3,null,true);
+    out.push({q:tr(`Kriittisen tehtävän ${nm(ci)} aloitus myöhästyy 2 työpäivää. Kuinka monta työpäivää projektin loppu siirtyy?`,`The start of critical task ${nm(ci)} is delayed by 2 working days. By how many working days does the project finish move?`),type:'num',ans:c3.fin-c.fin,tol:0,unit:tr('työpv','w.d.'),
+      sol:tr(`Kriittisellä tehtävällä ei ole pelivaraa, joten myöhästyminen siirtää loppua ${nf(c3.fin-c.fin,0)} pv.`,`A critical task has no float, so the delay moves the finish by ${nf(c3.fin-c.fin,0)} d.`)});}
+  const lab=c.total-st.tasks.reduce((a,t)=>a+(t.fix||0),0);
+  if(c.total>0)out.push({q:tr(`Laske projektin budjetoitu kokonaiskustannus (BAC). Työkustannus = kesto × resurssin yksiköt × ${nf(st.hpd,1)} h/pv × tuntihinta, lisäksi kiinteät kustannukset.`,`Calculate the project's budget at completion (BAC). Labour cost = duration × resource units × ${nf(st.hpd,1)} h/d × hourly rate, plus fixed costs.`),type:'num',ans:c.total,rtol:0.005,unit:'€',
+    sol:tr(`Työkustannukset ${eur(lab)} + kiinteät kustannukset ${eur(c.total-lab)} = ${eur(c.total)}. Tehtäväkohtaiset kustannukset näkyvät Verkko ja kriittinen polku -välilehden taulukossa.`,`Labour ${eur(lab)} + fixed costs ${eur(c.total-lab)} = ${eur(c.total)}. Costs per task are in the table on the Network & CPM tab.`)});
+  const PE=pert(st,c,dl);
+  out.push({q:tr(`PERT: laske kriittisen ketjun (${c.chain.map(id).join(' → ')}) avulla todennäköisyys, että projekti valmistuu tavoitepäivään mennessä (${dl} työpv). Käytä tₑ = (O+4M+P)/6 ja σ = (P−O)/6.`,`PERT: using the critical chain (${c.chain.map(id).join(' → ')}), calculate the probability that the project finishes by the target (${dl} working days). Use tₑ = (O+4M+P)/6 and σ = (P−O)/6.`),type:'num',ans:PE.P*100,tol:3,unit:'%',
+    sol:tr(`Tₑ = ${nf(c.fin,0)} + Σ(tₑ − M) = ${nf(PE.Te,2)} pv, σ = √Σσ² = ${nf(PE.sd,2)} pv, z = (${dl} − ${nf(PE.Te,2)}) / ${nf(PE.sd,2)} = ${PE.sd>0?nf((dl-PE.Te)/PE.sd,2):'–'}, P = Φ(z) = ${pct(PE.P,1)}. Vertaa Monte Carlo -tulokseen Ennuste ja riskit -välilehdellä.`,`Tₑ = ${nf(c.fin,0)} + Σ(tₑ − M) = ${nf(PE.Te,2)} d, σ = √Σσ² = ${nf(PE.sd,2)} d, z = (${dl} − ${nf(PE.Te,2)}) / ${nf(PE.sd,2)} = ${PE.sd>0?nf((dl-PE.Te)/PE.sd,2):'–'}, P = Φ(z) = ${pct(PE.P,1)}. Compare with the Monte Carlo result on the Forecast & risk tab.`)});
+  const lo=loads(st,c);const ro=st.res.filter(r=>lo.over[r.id]>0).sort((a,b)=>lo.over[b.id]-lo.over[a.id])[0];
+  if(ro){out.push({q:tr(`Resurssin ${ro.id} (${L2(ro.n)}, kapasiteetti ${nf(ro.cap,0)}) kuormitus ylittää kapasiteetin. Kuinka monena työpäivänä?`,`The load of resource ${ro.id} (${L2(ro.n)}, capacity ${nf(ro.cap,0)}) exceeds its capacity. On how many working days?`),type:'num',ans:lo.over[ro.id],tol:0,unit:tr('pv','d'),
+      sol:tr(`Laske päivittäin samanaikaisten tehtävien yksiköt yhteen. Kapasiteetti ylittyy ${lo.over[ro.id]} päivänä, huippukuorma on ${nf(lo.peak[ro.id],1)}. Katso Resurssit-välilehti.`,`Add up the units of concurrent tasks for each day. Capacity is exceeded on ${lo.over[ro.id]} days, peak load ${nf(lo.peak[ro.id],1)}. See the Resources tab.`)});
+    const s4=clone(st),lv=level(s4);s4.tasks.forEach((t,i)=>t.lvl=lv[i]);const c4=compute(s4,null,true);
+    out.push({q:tr('Tasoita resurssit simulaattorin Tasoita resurssit -painikkeella. Kuinka monta työpäivää projektin loppu siirtyy?','Level the resources with the simulator’s Level resources button. By how many working days does the project finish move?'),type:'num',ans:c4.fin-c.fin,tol:0,unit:tr('työpv','w.d.'),
+      sol:tr(`Tasoitus siirtää tehtäviä, kunnes kapasiteetti ei ylity missään. Loppu siirtyy ${nf(c4.fin-c.fin,0)} pv. Tasoitus kuluttaa ensin pelivaraa; kun pelivara loppuu, projekti pitenee. Vaihtoehtoja: lisäresurssi, ylityö tai tehtävän pilkkominen.`,`Levelling moves tasks until no capacity is exceeded. The finish moves by ${nf(c4.fin-c.fin,0)} d. Levelling uses float first; when it runs out, the project gets longer. Alternatives: extra resources, overtime or splitting the task.`)});}
+  const sc=withScen(ex),cs=compute(sc),E=evm(sc,cs);
+  const scen={st:sc.status,date:fD(endDate(sc,sc.status),'l'),dev:devTxt(ex)};
+  const evOk=E.BAC>0&&Number.isFinite(E.SPI)&&Number.isFinite(E.CPI)&&E.CPI>0;
+  if(evOk)out.push({scen:1,q:tr('Laske tilanteen aikataulu- ja kustannusindeksit SPI ja CPI (kaksi desimaalia). Eteneminen vastaa nykyistä aikataulua.','Calculate the schedule and cost performance indices SPI and CPI (two decimals). Progress follows the current schedule.'),type:'pair',ans:[E.SPI,E.CPI],tol:0.011,lab:['SPI','CPI'],
+    sol:`PV = ${eur(E.PV)}, EV = ${eur(E.EV)}, AC = ${eur(E.AC)}. SPI = EV / PV = ${nf(E.SPI,3)}, CPI = EV / AC = ${nf(E.CPI,3)}.`});
+  if(evOk)out.push({scen:1,q:tr('Laske samasta tilanteesta loppukustannusennuste EAC = BAC / CPI.','From the same situation, calculate the estimate at completion EAC = BAC / CPI.'),type:'num',ans:E.BAC/E.CPI,rtol:0.01,unit:'€',
+    sol:`EAC = ${eur(E.BAC)} / ${nf(E.CPI,3)} = ${eur(E.BAC/E.CPI)}. ${tr('Ero budjettitavoitteeseen','Difference to the budget target')}: ${eur(E.BAC/E.CPI-sc.budget)}.`});
+  out.push({scen:1,q:tr('Kuinka monta työpäivää projektin loppu siirtyy perustasoon nähden näiden poikkeamien vuoksi?','By how many working days do these deviations move the project finish compared with the baseline?'),type:'num',ans:cs.fin-sc.base.fin,tol:0,unit:tr('työpv','w.d.'),
+    sol:tr(`Perustason loppu ${nf(sc.base.fin,0)} pv, uusi loppu ${nf(cs.fin,0)} pv → ${sgnD(cs.fin-sc.base.fin)} pv. Vain kriittisen polun ylittävä osa poikkeamista siirtää loppua. Tavoitepäivä on ${dlIdx(sc)} pv.`,`Baseline finish ${nf(sc.base.fin,0)} d, new finish ${nf(cs.fin,0)} d → ${sgnD(cs.fin-sc.base.fin)} d. Only the part of a deviation that exceeds the float moves the finish. The target is ${dlIdx(sc)} d.`)});
+  return{out,scen};}
+const solHtml=(o,a)=>a.tried?`<details${a.open?' open':''}><summary>${esc(tr('Näytä ratkaisu','Show solution'))}</summary><p>${esc(o.sol)}</p></details>`
+  :`<p class="solnote">${esc(tr('Ratkaisu avautuu, kun olet vastannut tehtävään vähintään kerran.','The solution opens once you have answered the exercise at least once.'))}</p>`;
+function renderEx(){const ex=exById(S.ex),{out,scen}=buildEx(ex);let k=0;
+  const card=(o,j)=>{const key=ex.id+':'+j,a=exAns[key]||{};const inp=o.type==='pair'?o.lab.map((l,m)=>`<label>${l} <input type="text" inputmode="decimal" data-k="${key}" data-m="${m}" value="${esc((a.v||[])[m]||'')}"></label>`).join(' ')
+      :`<input type="text" ${o.type==='set'?'':'inputmode="decimal"'} data-k="${key}" data-m="0" value="${esc((a.v||[])[0]||'')}" aria-label="${esc(tr('Vastaus','Answer'))}"> <em>${esc(o.unit||'')}</em>`;
+    return `<div class="ex" data-key="${key}"><h4>${esc(tr('Tehtävä','Exercise'))} ${j+1}</h4><p>${esc(o.q)}</p><div class="exrow">${inp}<button class="btn sm" type="button" data-chk="${j}">${esc(tr('Tarkista','Check'))}</button><span class="fb ${a.ok===true?'ok':a.ok===false?'no':''}">${a.ok===true?esc(tr('Oikein','Correct')):a.ok===false?esc(tr('Ei vielä oikein','Not yet right')):''}</span></div><div class="solbox">${solHtml(o,a)}</div></div>`;};
+  const first=out.filter(o=>!o.scen),sec=out.filter(o=>o.scen);
+  $('#exList').innerHTML=`<p class="mnote">${esc(tr(`Harjoitukset lasketaan aina projektin "${L2(ex.n)}" alkuperäisestä perussuunnitelmasta, eivätkä simulaattorissa tekemäsi muutokset vaikuta vastauksiin. Ratkaisu avautuu, kun olet vastannut tehtävään kerran. Desimaalit voi kirjoittaa pilkulla tai pisteellä.`,`Exercises are always calculated from the original baseline of the project "${L2(ex.n)}", so changes you make in the simulator do not affect the answers. The solution opens once you have answered. Decimals may use a comma or a point.`))}</p>`+
+    first.map(o=>card(o,k++)).join('')+
+    `<div class="scen"><b>${esc(tr('Seurantatilanne','Tracking situation'))}</b><p style="margin:4px 0">${esc(tr(`Tilannepäivä ${scen.date} (${scen.st} työpäivää alusta). Perustasoon nähden:`,`Status date ${scen.date} (${scen.st} working days from the start). Compared with the baseline:`))}</p><ul>${scen.dev.map(d=>`<li>${esc(d)}</li>`).join('')}</ul>
+    <button class="btn sm" type="button" id="loadScen">${esc(tr('Lataa tilanne simulaattoriin','Load the situation into the simulator'))}</button></div>`+sec.map(o=>card(o,k++)).join('');
+  $('#exList').dataset.n=out.length;window.__exOut=out;}
+$('#exList').addEventListener('input',e=>{const el=e.target;if(!el.dataset.k)return;const a=exAns[el.dataset.k]=exAns[el.dataset.k]||{};a.v=a.v||[];a.v[+el.dataset.m]=el.value;});
+$('#exList').addEventListener('click',e=>{if(e.target.id==='loadScen'){const ex=exById(S.ex);change(()=>{S=withScen(ex);},true);setTab('gantt');return;}
+  const b=e.target.closest('[data-chk]');if(!b)return;const j=+b.dataset.chk,o=window.__exOut[j],key=exById(S.ex).id+':'+j,a=exAns[key]=exAns[key]||{v:[]};let ok=false;
+  if(o.type==='set'){const ms=new Set(S.tasks.filter(t=>t.d===0).map(t=>t.id));const g=new Set(String(a.v[0]||'').toUpperCase().split(/[^A-Z0-9_]+/).filter(x=>x&&!ms.has(x)));const want=new Set(o.ans);ok=g.size===want.size&&[...want].every(x=>g.has(x));}
+  else if(o.type==='pair'){ok=o.ans.every((v,m)=>Math.abs(num(a.v[m])-v)<=o.tol);}
+  else{const v=num(a.v[0]);ok=Number.isFinite(v)&&(o.rtol?Math.abs(v-o.ans)<=Math.abs(o.ans)*o.rtol:Math.abs(v-o.ans)<=o.tol+1e-9);}
+  const fb=b.parentElement.querySelector('.fb');
+  const filled=o.type==='pair'?o.lab.every((l,m)=>String(a.v[m]??'').trim()!==''):String(a.v[0]??'').trim()!=='';
+  if(!filled){fb.className='fb no';fb.textContent=tr('Kirjoita vastaus ensin.','Enter an answer first.');return;}
+  a.ok=ok;const first=!a.tried;a.tried=true;fb.className='fb '+(ok?'ok':'no');fb.textContent=ok?tr('Oikein','Correct'):tr('Ei vielä oikein – yritä uudelleen tai avaa ratkaisu.','Not yet right – try again or open the solution.');
+  if(first)b.closest('.ex').querySelector('.solbox').innerHTML=solHtml(o,a);});
+$('#exList').addEventListener('toggle',e=>{const d=e.target;if(d.tagName!=='DETAILS')return;const key=d.closest('.ex')?.dataset.key;if(key&&exAns[key])exAns[key].open=d.open;},true);
+
+/* ================= KPI JA VAROITUKSET ================= */
+function renderKpis(){const st=S,c=CUR,dl=dlIdx(st),B=st.base,lo=loads(st,c),f=endDate(st,c.fin),dB=B?c.fin-B.fin:0;
+  const k=[];
+  k.push(`<div class="kpi"><small>${esc(tr('Arvioitu valmistuminen','Forecast finish'))}</small><span class="big">${esc(fD(f,'l'))}</span><span class="sub">${nf(c.fin,0)} ${esc(tr('työpv','w.d.'))}${B?` · <span class="${dB>0?'bad':dB<0?'good':''}">${esc(tr('perustaso','baseline'))} ${sgnD(dB)} ${esc(tr('pv','d'))}</span>`:''}</span></div>`);
+  k.push(`<div class="kpi"><small>${esc(tr('Aikataulutavoite','Schedule target'))} ${esc(fD(endDate(st,dl),''))}</small><span class="big ${c.fin<=dl?'good':'bad'}">${c.fin<=dl?esc(tr('Toteutuu','Met')):esc(tr('Myöhässä','Late'))}</span><span class="sub">${c.fin<=dl?esc(tr(`pelivaraa ${nf(dl-c.fin,0)} työpv`,`${nf(dl-c.fin,0)} w.d. to spare`)):esc(tr(`${nf(c.fin-dl,0)} työpv yli tavoitteen`,`${nf(c.fin-dl,0)} w.d. past the target`))}</span></div>`);
+  k.push(`<div class="kpi"><small>${esc(tr('Suunniteltu kustannus','Planned cost'))}</small><span class="big">${eur(c.total)}</span><span class="sub">${esc(tr('budjetti','budget'))} ${eur(st.budget)} · <span class="${c.total<=st.budget?'good':'bad'}">${c.total<=st.budget?esc(tr('alle','under')):esc(tr('yli','over'))} ${eur(Math.abs(st.budget-c.total))}</span></span></div>`);
+  k.push(`<div class="kpi"><small>${esc(tr('Kriittinen polku','Critical path'))}</small><span class="big sm">${esc(c.chain.map(i=>st.tasks[i].id).join(' → ')||'–')}</span><span class="sub">${c.crit.filter(Boolean).length} ${esc(tr('kriittistä tehtävää','critical tasks'))}</span></div>`);
+  const ov=st.res.filter(r=>lo.over[r.id]>0);
+  k.push(`<div class="kpi"><small>${esc(tr('Resurssit','Resources'))}</small><span class="big ${ov.length?'bad':'good'}">${ov.length?esc(tr(`${lo.overDays} ylik. pv`,`${lo.overDays} over-alloc. d`)):esc(tr('Kapasiteetissa','Within capacity'))}</span><span class="sub">${ov.length?esc(ov.map(r=>`${r.id} ${lo.over[r.id]} ${tr('pv','d')}`).join(', ')):esc(tr('ei ylikuormitusta','no over-allocation'))}</span></div>`);
+  $('#kpis').innerHTML=k.join('');
+  const w=c.errs.map(e=>`<div>${esc(e)}</div>`);
+  if(st.tasks.some(t=>t.lvl))w.push(`<div class="info">${esc(tr('Resurssien tasoitus on käytössä: osa tehtävistä on siirretty myöhemmäksi (katkoviiva palkin edessä).','Resource levelling is applied: some tasks have been moved later (dashed line before the bar).'))}</div>`);
+  if(!st.base)w.push(`<div class="info">${esc(tr('Perustasoa ei ole tallennettu.','No baseline saved.'))}</div>`);
+  $('#warns').innerHTML=w.join('');}
+
+/* ================= VASEN PANEELI ================= */
+const fld=(lab,inner,cls)=>`<div class="fld${cls?' '+cls:''}"><label>${esc(lab)}</label>${inner}</div>`;
+const inpN=(id,step,unit,min)=>`<span class="inp"><input type="number" id="${id}" step="${step}"${min!=null?` min="${min}"`:''}><em>${esc(unit)}</em></span>`;
+function renderCtl(){const st=S,i=selIdx(),t=st.tasks[i];
+  const cur=exById(st.ex),own=CUSTOM.slice();if(st.def&&!own.find(e=>e.id===st.def.id))own.push(st.def);
+  const opt=e=>`<option value="${esc(e.id)}"${e.id===st.ex?' selected':''}>${esc(L2(e.n))}</option>`;
+  let h=`<h3>${esc(tr('Projekti','Project'))}</h3><div class="fld one"><select id="exSel" aria-label="${esc(tr('Projekti','Project'))}"><optgroup label="${esc(tr('Esimerkit','Examples'))}">${EX.map(opt).join('')}</optgroup>${own.length?`<optgroup label="${esc(tr('Omat projektit','My projects'))}">${own.map(opt).join('')}</optgroup>`:''}<optgroup label="${esc(tr('Uusi','New'))}"><option value="__new">${esc(tr('Projektin luonti…','Create a project…'))}</option></optgroup></select></div>
+  ${L2(cur.d)?`<p class="note">${esc(L2(cur.d))}</p>`:''}
+  <div class="acts" style="margin:0 0 4px"><button class="btn sm" type="button" id="wNew">${esc(tr('Projektin luonti','Create a project'))}</button>${cur.custom?`<button class="btn sm" type="button" id="wEdit">${esc(tr('Muokkaa kysymyksillä','Edit with questions'))}</button><button class="btn sm" type="button" id="wDel">${esc(tr('Poista oma projekti','Delete my project'))}</button>`:`<button class="btn sm" type="button" id="wCopy">${esc(tr('Luo tämän pohjalta','Create from this'))}</button>`}</div>
+  <h3>${esc(tr('Aikataulu ja tavoitteet','Schedule and goals'))}</h3>`+
+  fld(tr('Aloituspäivä','Start date'),'<input type="date" id="pStart">')+
+  fld(tr('Työviikko','Working week'),`<select id="pWeek"><option value="5">${esc(tr('5 pv (ma–pe)','5 d (Mon–Fri)'))}</option><option value="7">${esc(tr('7 pv','7 d'))}</option></select>`)+
+  fld(tr('Suomen arkipyhät vapaita','Finnish public holidays off'),'<input type="checkbox" id="pHol">')+
+  fld(tr('Työpäivän pituus','Working day'),inpN('pHpd','0.5','h',1))+
+  fld(tr('Tavoitepäivä (valmis)','Target date (finished)'),'<input type="date" id="pDl">')+
+  fld(tr('Budjettitavoite','Budget target'),inpN('pBud','1000','€',0))+
+  `<h3>${esc(tr('Seuranta','Tracking'))}</h3>
+  <div class="fld one"><label for="pStat" id="pStatLab"></label><input type="range" id="pStat" min="0" step="1" style="width:100%"></div>`+
+  fld(tr('Valmiusaste','Progress'),`<select id="pAuto"><option value="1">${esc(tr('aikataulun mukaan','per schedule'))}</option><option value="0">${esc(tr('syötetään käsin','entered manually'))}</option></select>`)+
+  `<div class="acts"><button class="btn" type="button" id="aBase">${esc(tr('Tallenna perustaso','Save baseline'))}</button><button class="btn" type="button" id="aLevel">${esc(tr('Tasoita resurssit','Level resources'))}</button><button class="btn" type="button" id="aUnlevel">${esc(tr('Poista tasoitus','Remove levelling'))}</button>
+  <button class="btn" type="button" id="aClear">${esc(tr('Nollaa poikkeamat','Clear deviations'))}</button><button class="btn" type="button" id="aReset">${esc(tr('Palauta esimerkki','Reset example'))}</button></div><p class="note" id="actNote"></p>
+  <h3>${esc(tr('Valittu tehtävä','Selected task'))}</h3>
+  <div class="fld" style="grid-template-columns:minmax(0,1fr) auto auto"><select id="tSel" aria-label="${esc(tr('Valittu tehtävä','Selected task'))}">${st.tasks.map(k=>`<option value="${esc(k.id)}"${k.id===selId?' selected':''}>${esc(k.id+' '+L2(k.n))}</option>`).join('')}</select>
+  <button class="btn sm" type="button" id="tAdd">${esc(tr('Uusi','New'))}</button><button class="btn sm" type="button" id="tDel"${t?'':' disabled'}>${esc(tr('Poista','Delete'))}</button></div>`;
+  if(t){h+=fld(tr('Nimi','Name'),'<input type="text" id="tName">')+
+    fld(tr('Kesto M (todennäköisin)','Duration M (most likely)'),inpN('tD','1',tr('pv','d'),0))+
+    fld(tr('Optimistinen O','Optimistic O'),inpN('tO','1',tr('pv','d'),0))+
+    fld(tr('Pessimistinen P','Pessimistic P'),inpN('tP','1',tr('pv','d'),0))+
+    fld(tr('Edeltäjät','Predecessors'),'<input type="text" id="tPred" autocomplete="off" spellcheck="false">')+
+    `<p class="note" id="tPredNote">${esc(tr('Esim. "A, B AA+2, C LL-1". Tyypit: LA lopusta alkuun (oletus), AA alusta alkuun, LL lopusta loppuun, AL alusta loppuun. Myös FS, SS, FF, SF käyvät.','E.g. "A, B SS+2, C FF-1". Types: FS finish-to-start (default), SS, FF, SF.'))}</p>`+
+    `<h3>${esc(tr('Resurssit tehtävällä (yksiköt)','Resources on the task (units)'))}</h3>`+
+    st.res.map(R=>fld(`${R.id} ${L2(R.n)}`,inpN('tr_'+R.id,'0.1','×',0))).join('')+
+    fld(tr('Kiinteä kustannus','Fixed cost'),inpN('tFix','100','€',0))+
+    fld(tr('Valmiusaste (käsin)','Progress (manual)'),inpN('tProg','5','%',0))+
+    `<h3>${esc(tr('Poikkeamat – mitä jos?','Deviations – what if?'))}</h3>`+
+    fld(tr('Lisäkesto (myöhästyminen)','Extra duration (overrun)'),inpN('tExtra','1',tr('pv','d')))+
+    `<div class="acts" style="margin:-2px 0 8px"><button class="btn sm" type="button" data-q="-1">−1 ${esc(tr('pv','d'))}</button><button class="btn sm" type="button" data-q="1">+1 ${esc(tr('pv','d'))}</button><button class="btn sm" type="button" data-q="5">+5 ${esc(tr('pv','d'))}</button><button class="btn sm" type="button" data-q="10">+10 ${esc(tr('pv','d'))}</button></div>`+
+    fld(tr('Aloitusviive','Start delay'),inpN('tSlip','1',tr('pv','d'),0))+
+    fld(tr('Toteutuneet kustannukset suunnitellusta','Actual cost vs plan'),inpN('tAcf','5','%',0))+
+    `<div class="impact" id="tImpact"></div>`;}
+  h+=`<p class="copy">© 2026 Juho Pirttilahti, ${esc(tr('Seinäjoen ammattikorkeakoulu','Seinäjoki University of Applied Sciences'))} (SEAMK). ${esc(tr('Lisenssi','Licence'))} <a href="https://creativecommons.org/licenses/by/4.0/deed.${lang}" target="_blank" rel="noopener">CC BY 4.0</a>. ${esc(tr('Ohjelmakoodi on toteutettu tekoälyavusteisesti (Claude, Anthropic). Esimerkkiprojektien kestot, tuntihinnat ja kustannukset ovat keksittyjä harjoitusarvoja.','The code was written with AI assistance (Claude, Anthropic). Durations, hourly rates and costs in the examples are invented practice values.'))}</p>`;
+  $('#ctl').innerHTML=h;updCtl();}
+function setV(id,v){const el=document.getElementById(id);if(!el||el===document.activeElement)return;if(el.type==='checkbox')el.checked=!!v;else el.value=v;}
+function updCtl(){const st=S,c=CUR,i=selIdx(),t=st.tasks[i];
+  setV('pStart',st.start);setV('pWeek',String(st.week));setV('pHol',st.hol);setV('pHpd',st.hpd);setV('pDl',st.deadline);setV('pBud',st.budget);setV('pAuto',st.auto?'1':'0');
+  const sl=$('#pStat');if(sl){sl.max=Math.ceil(Math.max(c.fin,st.base?st.base.fin:0))+5;setV('pStat',st.status);}
+  const sl2=$('#pStatLab');if(sl2)sl2.textContent=tr('Tilannepäivä: ','Status date: ')+(st.status>0?`${fD(endDate(st,st.status),'l')} (${st.status} ${tr('työpv','w.d.')})`:tr('ennen alkua','before start'));
+  $('#undoBtn').disabled=!hist.length;
+  if(!t)return;
+  setV('tSel',t.id);setV('tName',L2(t.n));setV('tD',t.d);setV('tO',t.o??t.d);setV('tP',t.p??t.d);setV('tPred',predStr(t.pred));
+  st.res.forEach(R=>setV('tr_'+R.id,t.res[R.id]||0));setV('tFix',t.fix||0);setV('tProg',st.auto?Math.round(frac(c.ES[i],c.D[i],st.status)*100):(t.prog||0));
+  const pe=$('#tProg');if(pe)pe.disabled=st.auto;
+  setV('tExtra',t.extra||0);setV('tSlip',t.slip||0);setV('tAcf',Math.round((t.acf??1)*100));
+  const im=$('#tImpact');if(im){const d=c.D[i],lv=t.lvl||0;
+    im.innerHTML=`<b>${esc(t.id)}</b>: ${m0(c.ES[i],d)} · ${esc(tr('kesto','duration'))} ${nf(d,0)} ${esc(tr('pv','d'))}${t.extra?` (${sgnD(t.extra)})`:''} · ${eur(c.cost[i])}<br>`+
+    (c.crit[i]?`<span class="bad">${esc(tr('Kriittinen: jokainen myöhästymispäivä siirtää projektin loppua.','Critical: every day of delay moves the project finish.'))}</span>`
+      :esc(tr(`Kokonaispelivara ${nf(c.TF[i],0)} pv, vapaa pelivara ${nf(c.FF[i],0)} pv: tehtävä voi myöhästyä ${nf(c.TF[i],0)} pv siirtämättä projektin loppua.`,`Total float ${nf(c.TF[i],0)} d, free float ${nf(c.FF[i],0)} d: the task can slip ${nf(c.TF[i],0)} d without moving the project finish.`)))+
+    (lv?`<br>${esc(tr(`Tasoitusviive ${lv} pv.`,`Levelling delay ${lv} d.`))}`:'');}}
+const m0=(es,d)=>d>0?`${fD(startDate(S,es),'s')}–${fD(endDate(S,es+d),'s')}`:`${fD(endDate(S,es),'s')}`;
+
+/* paneelin tapahtumat */
+$('#ctl').addEventListener('change',e=>{const el=e.target,id=el.id,i=selIdx(),t=S.tasks[i];const v=num(el.value);
+  if(id==='exSel'&&el.value==='__new'){el.value=S.ex;openWizard('empty');return;}
+  if(id==='exSel'){change(()=>{S=fromEx(exById(el.value));selId=S.tasks[0].id;},true);return;}
+  if(id==='tSel'){selId=el.value;renderCtl();render();return;}
+  if(id==='pStart'){if(el.value)change(()=>{const old=S.deadline,oldIdx=dlIdx(S);S.start=el.value;if(S.base){/* perustaso pysyy päivänumeroina */}S.deadline=iso(endDate(S,oldIdx));});return;}
+  if(id==='pWeek'){change(()=>{const k=dlIdx(S);S.week=+el.value;S.deadline=iso(endDate(S,k));});return;}
+  if(id==='pHol'){change(()=>{S.hol=el.checked;});return;}
+  if(id==='pHpd'){if(v>0)change(()=>{S.hpd=v;});return;}
+  if(id==='pDl'){if(el.value)change(()=>{S.deadline=el.value;});return;}
+  if(id==='pBud'){if(v>=0)change(()=>{S.budget=v;});return;}
+  if(id==='pAuto'){change(()=>{if(el.value==='0'&&S.auto){const c=CUR;S.tasks.forEach((t,k)=>t.prog=Math.round(frac(c.ES[k],c.D[k],S.status)*100));}S.auto=el.value==='1';});return;}
+  if(!t)return;
+  if(id==='tName'){change(()=>{const s=el.value.trim()||t.id;t.n=[s,s];},true);return;}
+  if(id==='tD'){if(v>=0)change(()=>{t.d=Math.round(v);if((t.o??0)>t.d)t.o=t.d;if((t.p??0)<t.d)t.p=t.d;});return;}
+  if(id==='tO'){if(v>=0)change(()=>{t.o=Math.min(Math.round(v),t.d);});return;}
+  if(id==='tP'){if(v>=0)change(()=>{t.p=Math.max(Math.round(v),t.d);});return;}
+  if(id==='tPred'){const r=parsePred(el.value);change(()=>{t.pred=r.out.filter(p=>p.id!==t.id);});const n=$('#tPredNote');
+    if(n&&r.err.length){n.textContent=tr('Ei tunnistettu: ','Not recognised: ')+r.err.join(', ');n.classList.add('err');}return;}
+  if(id.startsWith('tr_')){if(v>=0)change(()=>{const r=id.slice(3);if(v>0)t.res[r]=v;else delete t.res[r];});return;}
+  if(id==='tFix'){if(v>=0)change(()=>{t.fix=v;});return;}
+  if(id==='tProg'){if(v>=0)change(()=>{t.prog=clamp(v,0,100);});return;}
+  if(id==='tExtra'){if(Number.isFinite(v))change(()=>{t.extra=Math.max(-t.d,Math.round(v));});return;}
+  if(id==='tSlip'){if(v>=0)change(()=>{t.slip=Math.round(v);});return;}
+  if(id==='tAcf'){if(v>=0)change(()=>{t.acf=v/100;});return;}});
+$('#ctl').addEventListener('input',e=>{if(e.target.id==='pStat'){S.status=+e.target.value;CUR=compute(S);updCtl();render();}});
+$('#ctl').addEventListener('pointerdown',e=>{if(e.target.id==='pStat')pushHist();});
+$('#ctl').addEventListener('click',e=>{const id=e.target.id,i=selIdx(),t=S.tasks[i];const note=m=>{const n=$('#actNote');if(n)n.textContent=m;};
+  if(e.target.dataset.q&&t){const q=+e.target.dataset.q;change(()=>{t.extra=Math.max(-t.d,(t.extra||0)+q);});return;}
+  if(id==='wNew'){openWizard('empty');return;}
+  if(id==='wCopy'){openWizard('copy');return;}
+  if(id==='wEdit'){openWizard('edit');return;}
+  if(id==='wDel'){const b=e.target;if(!b.dataset.c){b.dataset.c='1';b.textContent=tr('Vahvista poisto','Confirm delete');b.classList.add('pri');return;}
+    const did=S.ex;CUSTOM=CUSTOM.filter(x=>x.id!==did);saveCustom();change(()=>{S=fromEx(EX[0]);selId=S.tasks[0].id;},true);return;}
+  if(id==='aBase'){change(()=>{S.base=snap(S);});note(tr('Perustaso tallennettu nykyisestä suunnitelmasta.','Baseline saved from the current plan.'));return;}
+  if(id==='aLevel'){const f0=CUR.fin;change(()=>{const lv=level(S);S.tasks.forEach((t,k)=>t.lvl=lv[k]);});const lo=loads(S,CUR);
+    note(tr(`Tasoitus tehty. Projektin loppu siirtyi ${sgnD(CUR.fin-f0)} työpv. Ylikuormitettuja päiviä jäljellä: ${lo.overDays}.`,`Levelling done. The project finish moved ${sgnD(CUR.fin-f0)} w.d. Over-allocated days left: ${lo.overDays}.`)+(lo.overDays?tr(' (Tehtävä, jonka yksiköt ylittävät kapasiteetin, ei mahdu koskaan.)',' (A task whose units exceed the capacity can never fit.)'):''));return;}
+  if(id==='aUnlevel'){change(()=>{S.tasks.forEach(t=>t.lvl=0);});note('');return;}
+  if(id==='aClear'){change(()=>{S.tasks.forEach(t=>{t.extra=0;t.slip=0;t.acf=1;t.lvl=0;});});note(tr('Lisäkestot, aloitusviiveet, kustannuspoikkeamat ja tasoitus nollattu.','Extra durations, start delays, cost deviations and levelling cleared.'));return;}
+  if(id==='aReset'){change(()=>{S=fromEx(exById(S.ex));selId=S.tasks[0].id;},true);return;}
+  if(id==='tAdd'){change(()=>{const used=new Set(S.tasks.map(k=>k.id));let nid='';for(const ch of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ')if(!used.has(ch)){nid=ch;break;}
+      if(!nid){let k=1;while(used.has('T'+k))k++;nid='T'+k;}const nt={id:nid,n:[tr('Uusi tehtävä','New task'),tr('Uusi tehtävä','New task')],d:5,o:4,p:8,pred:t?[{id:t.id,type:'FS',lag:0}]:[],res:{},fix:0,prog:0,acf:1,extra:0,slip:0,lvl:0};
+      S.tasks.splice(i+1,0,nt);selId=nid;},true);return;}
+  if(id==='tDel'&&t){change(()=>{S.tasks.splice(i,1);S.tasks.forEach(k=>k.pred=k.pred.filter(p=>p.id!==t.id));selId=S.tasks[Math.max(0,i-1)]?.id||null;},true);return;}});
+
+/* ================= YLEINEN ================= */
+function render(){if(!CUR)CUR=compute(S);readCol();renderKpis();
+  if(tab==='gantt'){drawGantt();drawImpact();baseTable();}
+  else if(tab==='net'){drawNet();cpmTable();}
+  else if(tab==='res'){drawRes();resTable();}
+  else if(tab==='evm'){const sel=$('#eacSel');sel.innerHTML=[['cpi','BAC / CPI'],['ac',tr('AC + (BAC − EV), jäljellä oleva työ suunnitellusti','AC + (BAC − EV), remaining work as planned')],['cs','AC + (BAC − EV) / (CPI · SPI)']].map(([v,l])=>`<option value="${v}"${(S.eac||'cpi')===v?' selected':''}>${esc(l)}</option>`).join('');drawEVM();}
+  else if(tab==='mc')drawMC();
+  else if(tab==='ex')renderEx();}
+$('#eacSel').addEventListener('change',e=>{S.eac=e.target.value;save();render();});
+$('#zoomSel').addEventListener('change',render);
+function setTab(t){tab=t;$$('.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t?'true':'false'));$$('.panel').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));
+  try{localStorage.setItem('pmsim-tab',t);}catch(e){}render();}
+$$('.tabs button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+function undo(){if(!hist.length)return;S=JSON.parse(hist.pop());after(true);}
+$('#undoBtn').addEventListener('click',undo);
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){e.preventDefault();undo();}
+  if(e.key==='Escape')closeModal();});
+function applyLang(){document.documentElement.lang=lang;$$('[data-en]').forEach(el=>{if(el.dataset.fi===undefined)el.dataset.fi=el.innerHTML;el.innerHTML=lang==='en'?el.dataset.en:el.dataset.fi;});
+  $$('[data-en-aria]').forEach(el=>{if(el.dataset.fiAria===undefined)el.dataset.fiAria=el.getAttribute('aria-label');el.setAttribute('aria-label',lang==='en'?el.dataset.enAria:el.dataset.fiAria);});
+  $$('.langsw button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.lang===lang?'true':'false'));}
+$$('.langsw button').forEach(b=>b.addEventListener('click',()=>{lang=b.dataset.lang;try{localStorage.setItem('pmsim-lang',lang);}catch(e){}applyLang();CUR=compute(S);renderCtl();render();}));
+
+/* modaalit */
+function openModal(html){$('#mbox').innerHTML=html;$('#modal').classList.add('open');}
+function closeModal(){$('#modal').classList.remove('open');$('#mbox').classList.remove('wide');delete $('#mbox').dataset.wz;}
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal'||e.target.dataset.close!==undefined)closeModal();});
+const HELP={fi:`<h2>Projektinhallintasimulaattori – ohje</h2>
+<p>Simulaattorilla harjoitellaan projektin aikataulutusta, resurssointia, kustannusseurantaa ja ennustamista. Valitse esimerkkiprojekti vasemmasta paneelista ja kokeile, mitä tapahtuu, kun tehtävä myöhästyy, resurssi loppuu tai kustannukset ylittyvät. Kaikki näkymät päivittyvät heti.</p>
+<h3>Aika ja kalenteri</h3><p>Ajat ovat työpäiviä. Päivänumero 0 on ensimmäisen työpäivän alku; tehtävä, jonka ES = 5 ja kesto 3, tehdään päivinä 5, 6 ja 7 ja päättyy päivän 7 lopussa (EF = 8). Kalenteri ohittaa viikonloput (5 päivän viikko) ja halutessa Suomen arkipyhät sekä juhannus- ja jouluaaton. Kesto 0 on virstanpylväs.</p>
+<h3>Riippuvuudet</h3><ul><li><b>LA</b> (FS) lopusta alkuun: seuraaja alkaa, kun edeltäjä on valmis (oletus).</li><li><b>AA</b> (SS) alusta alkuun: seuraaja voi alkaa, kun edeltäjä on alkanut.</li><li><b>LL</b> (FF) lopusta loppuun: seuraaja voi valmistua, kun edeltäjä on valmis.</li><li><b>AL</b> (SF) alusta loppuun: harvinainen; seuraaja voi valmistua, kun edeltäjä on alkanut.</li></ul><p>Viive kirjoitetaan perään: <code>C LA+7</code> (odotus 7 pv, esim. betonin lujittuminen), <code>B AA+2</code>, negatiivinen viive on limitys.</p>
+<h3>Kriittinen polku (CPM)</h3><p>Eteenpäinlaskenta antaa aikaisimmat ajat ES ja EF, taaksepäinlaskenta myöhäisimmät ajat LS ja LF. Kokonaispelivara TF = LS − ES kertoo, paljonko tehtävä voi myöhästyä siirtämättä projektin loppua. Vapaa pelivara FF kertoo, paljonko se voi myöhästyä siirtämättä yhtään seuraajaa. Tehtävät, joiden TF = 0, ovat kriittisiä (punaiset). Kriittinen ketju kulkee lopusta alkuun niiden riippuvuuksien kautta, jotka määräävät tehtävän alun.</p>
+<h3>Resurssit ja kustannukset</h3><p>Resurssin yksikkö 1 tarkoittaa yhtä henkilöä tai ryhmää kokoaikaisesti. Tehtävän työkustannus = kesto × yksiköt × työpäivän tunnit × tuntihinta; lisäksi kiinteä kustannus (hankinnat, alihankinta). Kuormitus lasketaan päivittäin; kapasiteetin ylitys näkyy punaisena. <b>Tasoita resurssit</b> siirtää tehtäviä sarjallisella ajoituksella: tehtävät käsitellään myöhäisimmän alkamisajan mukaisessa järjestyksessä ja kukin sijoitetaan ensimmäiseen kohtaan, jossa kapasiteetti riittää. Tasoitus on heuristiikka, ei optimi.</p>
+<h3>Poikkeamat (mitä jos)</h3><p><b>Lisäkesto</b> pidentää tehtävää; työkustannus kasvaa, koska resurssit tekevät työtä pidempään, kiinteä kustannus ei muutu. <b>Aloitusviive</b> siirtää tehtävän alkua. <b>Toteutuneet kustannukset</b> kertoo, montako prosenttia suunnitellusta tehty työ on oikeasti maksanut (vaikuttaa AC:hen). Gantt-kaaviossa palkkia voi myös vetää. <b>Perustaso</b> on vertailukohta: harmaa ohut palkki. Tallenna perustaso, kun suunnitelma on hyväksytty.</p>
+<h3>Ansaitun arvon menetelmä</h3><ul><li>PV = suunniteltu arvo tilannepäivään mennessä (perustaso), EV = ansaittu arvo = BAC × valmiusaste, AC = toteutuneet kustannukset.</li><li>SV = EV − PV, CV = EV − AC, SPI = EV / PV, CPI = EV / AC.</li><li>EAC = BAC / CPI (tai AC + (BAC − EV) tai AC + (BAC − EV)/(CPI·SPI)), ETC = EAC − AC, VAC = BAC − EAC, TCPI = (BAC − EV)/(BAC − AC).</li><li>Ansaittu aikataulu: ES on hetki, jolloin perustason PV olisi ollut nykyisen EV:n suuruinen; SPI(t) = ES / AT ja IEAC(t) = suunniteltu kesto / SPI(t). Tavallinen SPI lähestyy arvoa 1 projektin lopussa myöhästymisestä huolimatta, SPI(t) ei.</li></ul><p>Valmiusaste lasketaan oletuksena nykyisen aikataulun mukaan (tasainen eteneminen); sen voi myös syöttää käsin tehtäväkohtaisesti.</p>
+<h3>Ennusteet ja riskit</h3><p><b>PERT</b>: tₑ = (O + 4M + P)/6 ja σ = (P − O)/6 kriittisen ketjun tehtäville, todennäköisyys normaalijakaumasta. <b>Monte Carlo</b>: jokaisen tehtävän kesto arvotaan kolmiojakaumasta (O, M, P) ja aikataulu lasketaan N kertaa. Tulos on valmistumisen jakauma, P50/P80/P90-arvot ja kriittisyysindeksi. Monte Carlo huomioi rinnakkaiset polut, joten se on yleensä PERTiä realistisempi.</p>
+<h3>Oma projekti ja harjoitukset</h3><p>Valitse projektivalikosta <b>Projektin luonti…</b> tai paina Projektin luonti. Kysely etenee kuudessa vaiheessa: projekti, kalenteri, tavoitteet, resurssit, tehtävät ja yhteenveto. Pohjaksi voi ottaa tyhjän projektin, esimerkin tai nykyisen suunnitelman. Omat projektit tallentuvat tämän selaimen muistiin; Vie / tuo -toiminnolla projektin saa siirrettyä toiselle koneelle. Omalle projektille muodostetaan harjoitukset automaattisesti, myös seurantatilanne (tilannepäivä puolivälissä, yksi kriittinen tehtävä venyy noin 30 % ja yhden tehtävän kustannukset ylittyvät 15 %). Harjoituksen ratkaisu avautuu, kun tehtävään on vastattu kerran.</p>
+<h3>Rajoitukset</h3><p>Malli on opetuskäyttöön yksinkertaistettu: resursseilla ei ole omia kalentereita, tehtäviä ei voi keskeyttää, kuormitus on tehtävän ajan tasainen ja kokonaislukupäivät. Opettaja vastaa simuloitujen ilmiöiden validoinnista.</p>
+<p class="mcopy">© 2026 Juho Pirttilahti, SEAMK. CC BY 4.0.</p><div class="mrow"><button class="btn pri" type="button" data-close>Sulje</button></div>`,
+en:`<h2>Project Management Simulator – help</h2>
+<p>The simulator is for practising project scheduling, resourcing, cost tracking and forecasting. Choose an example project in the left panel and try what happens when a task is late, a resource runs short or costs overrun. All views update immediately.</p>
+<h3>Time and calendar</h3><p>Times are working days. Day number 0 is the start of the first working day; a task with ES = 5 and duration 3 is done on days 5, 6 and 7 and finishes at the end of day 7 (EF = 8). The calendar skips weekends (5-day week) and optionally Finnish public holidays and Midsummer and Christmas Eve. Duration 0 is a milestone.</p>
+<h3>Dependencies</h3><ul><li><b>FS</b> finish-to-start: the successor starts when the predecessor is finished (default).</li><li><b>SS</b> start-to-start: the successor may start once the predecessor has started.</li><li><b>FF</b> finish-to-finish: the successor may finish once the predecessor is finished.</li><li><b>SF</b> start-to-finish: rare; the successor may finish once the predecessor has started.</li></ul><p>Add a lag after the type: <code>C FS+7</code> (7-day wait, e.g. concrete curing), <code>B SS+2</code>; a negative lag is an overlap. Finnish abbreviations LA, AA, LL, AL are also accepted.</p>
+<h3>Critical path (CPM)</h3><p>The forward pass gives the early times ES and EF, the backward pass the late times LS and LF. Total float TF = LS − ES is how much a task can slip without moving the project finish. Free float FF is how much it can slip without moving any successor. Tasks with TF = 0 are critical (red). The critical chain runs from the finish back through the links that drive each task's start.</p>
+<h3>Resources and costs</h3><p>One resource unit means one person or crew full time. Labour cost = duration × units × hours per day × hourly rate, plus a fixed cost (purchases, subcontracting). Load is calculated per day; over-capacity is shown in red. <b>Level resources</b> uses serial scheduling: tasks are handled in order of late start and each is placed at the first time where capacity suffices. Levelling is a heuristic, not an optimum.</p>
+<h3>Deviations (what if)</h3><p><b>Extra duration</b> lengthens a task; labour cost grows because the resources work longer, the fixed cost does not change. <b>Start delay</b> moves the start. <b>Actual cost vs plan</b> is what the work done has actually cost as a percentage of plan (affects AC). Bars can also be dragged in the Gantt chart. The <b>baseline</b> is the reference: the thin grey bar. Save the baseline when the plan has been approved.</p>
+<h3>Earned value management</h3><ul><li>PV = planned value to the status date (baseline), EV = earned value = BAC × percent complete, AC = actual cost.</li><li>SV = EV − PV, CV = EV − AC, SPI = EV / PV, CPI = EV / AC.</li><li>EAC = BAC / CPI (or AC + (BAC − EV) or AC + (BAC − EV)/(CPI·SPI)), ETC = EAC − AC, VAC = BAC − EAC, TCPI = (BAC − EV)/(BAC − AC).</li><li>Earned schedule: ES is the time when the baseline PV equalled the current EV; SPI(t) = ES / AT and IEAC(t) = planned duration / SPI(t). Ordinary SPI tends to 1 at the end of a late project, SPI(t) does not.</li></ul><p>By default percent complete follows the current schedule (even progress); it can also be entered per task.</p>
+<h3>Forecasts and risk</h3><p><b>PERT</b>: tₑ = (O + 4M + P)/6 and σ = (P − O)/6 for the tasks on the critical chain, probability from the normal distribution. <b>Monte Carlo</b>: each duration is drawn from a triangular distribution (O, M, P) and the schedule is calculated N times. The result is the finish distribution, P50/P80/P90 and the criticality index. Monte Carlo accounts for parallel paths, so it is usually more realistic than PERT.</p>
+<h3>Own project and exercises</h3><p>Choose <b>Create a project…</b> in the project list or press Create a project. The questions go through six steps: project, calendar, goals, resources, tasks and summary. You can start from an empty project, an example or the current plan. Own projects are stored in this browser; use Export / import to move a project to another computer. Exercises are generated automatically for an own project, including a tracking situation (status date at mid-point, one critical task overruns by about 30 % and one task's cost by 15 %). The solution to an exercise opens once it has been answered.</p>
+<h3>Limitations</h3><p>The model is simplified for teaching: resources have no own calendars, tasks cannot be split, load is even over a task and days are whole numbers. The teacher is responsible for validating the simulated phenomena.</p>
+<p class="mcopy">© 2026 Juho Pirttilahti, SEAMK. CC BY 4.0.</p><div class="mrow"><button class="btn pri" type="button" data-close>Close</button></div>`};
+$('#helpBtn').addEventListener('click',()=>openModal(HELP[lang]));
+$('#jsonBtn').addEventListener('click',()=>{openModal(`<h2>${esc(tr('Vie tai tuo projekti','Export or import a project'))}</h2><p>${esc(tr('Kopioi teksti talteen tai liitä aiemmin viety projekti ja valitse Tuo.','Copy the text to keep it, or paste a previously exported project and choose Import.'))}</p>
+  <textarea id="jsonTa" spellcheck="false" aria-label="JSON">${esc(JSON.stringify(compactState(S),null,1))}</textarea><p class="mnote" id="jsonMsg"></p>
+  <div class="mrow"><button class="btn" type="button" id="jsonCopy">${esc(tr('Kopioi','Copy'))}</button><button class="btn" type="button" id="jsonImp">${esc(tr('Tuo','Import'))}</button><button class="btn pri" type="button" data-close>${esc(tr('Sulje','Close'))}</button></div>`);
+  $('#jsonCopy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('#jsonTa').value);$('#jsonMsg').textContent=tr('Kopioitu.','Copied.');}catch(e){$('#jsonTa').select();$('#jsonMsg').textContent=tr('Kopiointi estettiin – teksti on valittu, kopioi se itse.','Copying was blocked – the text is selected, copy it yourself.');}});
+  $('#jsonImp').addEventListener('click',()=>{try{const s=expandState(JSON.parse($('#jsonTa').value));if(!s||!Array.isArray(s.tasks)||!Array.isArray(s.res)||!s.start)throw 0;
+      s.v=1;s.tasks.forEach(t=>{t.pred=t.pred||[];t.res=t.res||{};['extra','slip','lvl','fix','prog'].forEach(k=>t[k]=+t[k]||0);t.acf=t.acf??1;if(!Array.isArray(t.n))t.n=[String(t.n||t.id),String(t.n||t.id)];});
+      if(s.def&&s.def.custom&&Array.isArray(s.def.t)&&!CUSTOM.find(x=>x.id===s.def.id)){CUSTOM.push(s.def);saveCustom();}
+      change(()=>{S=s;selId=S.tasks[0]?.id||null;},true);closeModal();}catch(e){$('#jsonMsg').textContent=tr('Tekstiä ei voitu lukea projektiksi.','The text could not be read as a project.');}});});
+
+/* ================= PROJEKTIN LUONTI (kysely) ================= */
+let W=null,wStep=0;
+const nextMon=()=>{const d=new Date(),t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));do{t.setUTCDate(t.getUTCDate()+1);}while(t.getUTCDay()!==1);return iso(t);};
+const predC=ps=>ps.map(p=>p.id+((p.type!=='FS'||p.lag)?' '+(lang==='en'?p.type:TFI[p.type]):'')+(p.lag?(p.lag>0?'+':'')+p.lag:'')).join(', ');
+const resC=o=>Object.entries(o).filter(([k,v])=>v>0).map(([k,v])=>k+':'+v).join(', ');
+const pick=(a,b)=>lang==='en'?b:a;
+function wFromEx(ex,keep){return{base:ex.id,editId:keep?ex.id:null,name:L2(ex.n)+(keep?'':tr(' (kopio)',' (copy)')),desc:L2(ex.d)||'',start:ex.start,week:ex.week===7?7:5,hol:ex.hol??true,hpd:ex.hpd||7.5,
+  dlMode:ex.deadline?'abs':'rel',dlRel:ex.dl??5,dlAbs:ex.deadline||'',bMode:ex.budget!=null?'abs':'rel',bRel:Math.round(((ex.bf||1.05)-1)*100),bAbs:ex.budget??'',
+  res:ex.res.map(r=>({id:r[0],name:pick(r[1],r[2]),cap:r[3],rate:r[4]})),
+  tasks:ex.t.map(a=>({id:a[0],name:pick(a[1],a[2]),d:a[3],o:a[4],p:a[5],pred:predC(parsePred(a[6]).out),res:resC(parseRes(a[7])),fix:a[8]||0}))};}
+function wFromState(st){const ex=exById(st.ex);return{base:'current',editId:null,name:L2(ex.n)+tr(' (muokattu)',' (modified)'),desc:L2(ex.d)||'',start:st.start,week:st.week,hol:st.hol,hpd:st.hpd,
+  dlMode:'abs',dlRel:5,dlAbs:st.deadline,bMode:'abs',bRel:5,bAbs:st.budget,res:st.res.map(r=>({id:r.id,name:L2(r.n),cap:r.cap,rate:r.rate})),
+  tasks:st.tasks.map(t=>({id:t.id,name:L2(t.n),d:t.d,o:t.o??'',p:t.p??'',pred:predC(t.pred),res:resC(t.res),fix:t.fix||0}))};}
+function wEmpty(){return{base:'empty',editId:null,name:'',desc:'',start:nextMon(),week:5,hol:true,hpd:7.5,dlMode:'rel',dlRel:5,dlAbs:'',bMode:'rel',bRel:5,bAbs:'',
+  res:[{id:'PM',name:tr('Projektipäällikkö','Project manager'),cap:1,rate:80}],tasks:[{id:'A',name:'',d:5,o:'',p:'',pred:'',res:'PM:1',fix:0}]};}
+const up=v=>String(v??'').trim().toUpperCase();
+function wToDef(w){const id=w.editId||('u'+Date.now().toString(36));const nm=String(w.name||'').trim()||tr('Oma projekti','My project'),ds=String(w.desc||'').trim();
+  const def={id,custom:true,n:[nm,nm],d:[ds,ds],start:w.start,week:+w.week===7?7:5,hol:!!w.hol,hpd:num(w.hpd)>0?num(w.hpd):7.5,
+    res:w.res.map(r=>{const rid=up(r.id),n=String(r.name||'').trim()||rid;return[rid,n,n,num(r.cap)>0?num(r.cap):1,num(r.rate)>=0?num(r.rate):0];}),
+    t:w.tasks.map(t=>{const tid=up(t.id),n=String(t.name||'').trim()||tid,d=Math.max(0,Math.round(num(t.d)||0));
+      let o=String(t.o??'').trim()===''?Math.round(d*0.8):Math.round(num(t.o)),p=String(t.p??'').trim()===''?Math.round(d*1.5):Math.round(num(t.p));
+      if(!Number.isFinite(o))o=Math.round(d*0.8);if(!Number.isFinite(p))p=Math.round(d*1.5);o=clamp(o,0,d);p=Math.max(p,d);
+      return[tid,n,n,d,o,p,parsePred(t.pred).out.map(p=>p.id+((p.type!=='FS'||p.lag)?' '+p.type:'')+(p.lag?(p.lag>0?'+':'')+p.lag:'')).join(', '),resC(parseRes(up(t.res).replace(/\s/g,''))),Math.max(0,num(t.fix)||0)];})};
+  if(w.dlMode==='abs'&&w.dlAbs)def.deadline=w.dlAbs;else def.dl=Math.round(num(w.dlRel)||0);
+  if(w.bMode==='abs'&&String(w.bAbs).trim()!==''&&num(w.bAbs)>=0)def.budget=num(w.bAbs);else def.bf=1+(num(w.bRel)||0)/100;
+  def.scen=genScen(def);return def;}
+function wCheck(w){const errs=[],warns=[],idRe=/^[A-Z0-9_]+$/;
+  if(!String(w.name||'').trim())errs.push(tr('Anna projektille nimi (vaihe 1).','Give the project a name (step 1).'));
+  if(!w.start||isNaN(new Date(w.start+'T00:00:00Z')))errs.push(tr('Aloituspäivä puuttuu (vaihe 2).','The start date is missing (step 2).'));
+  if(!(num(w.hpd)>0))errs.push(tr('Työpäivän pituuden on oltava yli 0 h (vaihe 2).','The working day must be over 0 h (step 2).'));
+  if(w.dlMode==='abs'&&!w.dlAbs)errs.push(tr('Anna tavoitepäivä tai valitse suhteellinen tavoite (vaihe 3).','Give a target date or choose a relative target (step 3).'));
+  const rids=new Set();w.res.forEach((r,k)=>{const id=up(r.id);
+    if(!idRe.test(id))errs.push(tr(`Resurssin ${k+1} tunnus "${r.id}" ei kelpaa: käytä kirjaimia, numeroita tai alaviivaa (vaihe 4).`,`Resource ${k+1} ID "${r.id}" is not valid: use letters, digits or underscore (step 4).`));
+    else if(rids.has(id))errs.push(tr(`Resurssitunnus ${id} on kahdesti (vaihe 4).`,`Resource ID ${id} appears twice (step 4).`));rids.add(id);
+    if(!(num(r.cap)>0))errs.push(tr(`Resurssin ${id||k+1} kapasiteetin on oltava yli 0 (vaihe 4).`,`Resource ${id||k+1} capacity must be over 0 (step 4).`));
+    if(!(num(r.rate)>=0))errs.push(tr(`Resurssin ${id||k+1} tuntihinta puuttuu (vaihe 4).`,`Resource ${id||k+1} hourly rate is missing (step 4).`));});
+  if(!w.tasks.length)errs.push(tr('Lisää vähintään yksi tehtävä (vaihe 5).','Add at least one task (step 5).'));
+  const tids=new Set();w.tasks.forEach((t,k)=>{const id=up(t.id);
+    if(!idRe.test(id))errs.push(tr(`Tehtävän ${k+1} tunnus "${t.id}" ei kelpaa (vaihe 5).`,`Task ${k+1} ID "${t.id}" is not valid (step 5).`));
+    else if(tids.has(id))errs.push(tr(`Tehtävätunnus ${id} on kahdesti (vaihe 5).`,`Task ID ${id} appears twice (step 5).`));tids.add(id);
+    if(!(num(t.d)>=0))errs.push(tr(`Tehtävän ${id||k+1} kesto puuttuu (vaihe 5).`,`Task ${id||k+1} duration is missing (step 5).`));});
+  w.tasks.forEach(t=>{const id=up(t.id),r=parsePred(t.pred);
+    r.err.forEach(x=>errs.push(tr(`Tehtävä ${id}: edeltäjää "${x}" ei tunnistettu (vaihe 5).`,`Task ${id}: predecessor "${x}" not recognised (step 5).`)));
+    r.out.forEach(p=>{if(p.id===id)errs.push(tr(`Tehtävä ${id} ei voi olla oma edeltäjänsä.`,`Task ${id} cannot be its own predecessor.`));else if(!tids.has(p.id))errs.push(tr(`Tehtävä ${id}: edeltäjää ${p.id} ei ole tehtävälistassa.`,`Task ${id}: predecessor ${p.id} is not in the task list.`));});
+    const rs=String(t.res||'').trim();
+    if(rs)for(const part of rs.split(',')){const [r0,u]=part.split(':').map(x=>x===undefined?x:x.trim());if(!r0)continue;
+      if(!rids.has(up(r0)))errs.push(tr(`Tehtävä ${id}: resurssia ${up(r0)} ei ole resurssilistassa.`,`Task ${id}: resource ${up(r0)} is not in the resource list.`));
+      if(u!==undefined&&!(+u>=0))errs.push(tr(`Tehtävä ${id}: resurssin ${up(r0)} yksiköt "${u}" eivät ole luku (käytä desimaalipistettä, esim. 0.5).`,`Task ${id}: units "${u}" for ${up(r0)} are not a number (use a decimal point, e.g. 0.5).`));}
+    if(!rs&&!(num(t.fix)>0)&&num(t.d)>0)warns.push(tr(`Tehtävällä ${id} ei ole resursseja eikä kiinteää kustannusta, joten sen kustannus on 0 €.`,`Task ${id} has no resources and no fixed cost, so its cost is 0 €.`));
+    if(String(t.o).trim()!==''&&String(t.p).trim()!==''&&(num(t.o)>num(t.d)||num(t.p)<num(t.d)))warns.push(tr(`Tehtävä ${id}: O ei saa olla suurempi eikä P pienempi kuin M; arvot rajataan.`,`Task ${id}: O may not exceed M and P may not be below M; the values are clipped.`));});
+  if(errs.length)return{errs,warns};
+  const def=wToDef(w),st=fromEx(def),c=compute(st);c.errs.forEach(x=>errs.push(x));
+  return{errs,warns,def,st,c};}
+const WST=()=>[tr('Projekti','Project'),tr('Kalenteri','Calendar'),tr('Tavoitteet','Goals'),tr('Resurssit','Resources'),tr('Tehtävät','Tasks'),tr('Yhteenveto','Summary')];
+function openWizard(mode){W=mode==='edit'?wFromEx(exById(S.ex),true):mode==='copy'?wFromState(S):wEmpty();wStep=0;
+  openModal('');$('#mbox').classList.add('wide');$('#mbox').dataset.wz='1';drawWizard();}
+function drawWizard(){const w=W,s=wStep;let b='';
+  const q=(t,sub)=>`<p class="wq">${esc(t)}</p>${sub?`<p class="mnote">${esc(sub)}</p>`:''}`;
+  const F=(lab,inner)=>`<div class="wfld"><label>${esc(lab)}</label><div>${inner}</div></div>`;
+  const iv=(k,type,extra)=>`<input type="${type}" data-w="${k}" value="${esc(w[k]??'')}" ${extra||''}>`;
+  if(s===0){b=q(tr('Mikä projekti on kyseessä?','What is the project?'),tr('Nimi näkyy projektivalikossa ja kuvaus sen alla.','The name appears in the project list and the description below it.'))+
+    F(tr('Projektin nimi','Project name'),iv('name','text','maxlength="80" autocomplete="off"'))+F(tr('Lyhyt kuvaus (valinnainen)','Short description (optional)'),iv('desc','text','maxlength="300" autocomplete="off"'))+
+    (w.editId?'':F(tr('Pohja','Starting point'),`<select data-wb="1">${[['empty',tr('Tyhjä projekti','Empty project')],['current',tr('Nykyinen suunnitelma (ilman poikkeamia)','Current plan (without deviations)')],...EX.map(e=>[e.id,tr('Esimerkki: ','Example: ')+L2(e.n)]),...CUSTOM.map(e=>[e.id,tr('Oma: ','Own: ')+L2(e.n)])].map(([v,l])=>`<option value="${esc(v)}"${w.base===v?' selected':''}>${esc(l)}</option>`).join('')}</select>`)+
+      `<p class="mnote">${esc(tr('Pohjan vaihtaminen korvaa kaikki vastaukset pohjan tiedoilla. Nykyisestä suunnitelmasta kopioidaan tehtävien perustiedot, mutta ei lisäkestoja, aloitusviiveitä eikä tasoitusta.','Changing the starting point replaces all answers with its data. From the current plan the basic task data are copied, but not extra durations, start delays or levelling.'))}</p>`);}
+  else if(s===1){b=q(tr('Milloin projekti alkaa ja millä kalenterilla työskennellään?','When does the project start and on what calendar is work done?'),tr('Kestot annetaan työpäivinä. Kalenteri muuttaa ne päivämääriksi.','Durations are given in working days. The calendar turns them into dates.'))+
+    F(tr('Aloituspäivä','Start date'),iv('start','date'))+
+    F(tr('Työviikko','Working week'),`<select data-w="week"><option value="5"${+w.week!==7?' selected':''}>${esc(tr('5 päivää (ma–pe)','5 days (Mon–Fri)'))}</option><option value="7"${+w.week===7?' selected':''}>${esc(tr('7 päivää','7 days'))}</option></select>`)+
+    F(tr('Suomen arkipyhät ovat vapaita','Finnish public holidays are off'),`<input type="checkbox" data-w="hol"${w.hol?' checked':''}>`)+
+    F(tr('Työpäivän pituus (h)','Working day (h)'),iv('hpd','number','min="1" step="0.5"'));}
+  else if(s===2){b=q(tr('Mitkä ovat projektin aikataulu- ja kustannustavoitteet?','What are the schedule and cost goals of the project?'),tr('Tavoitteen voi antaa tarkkana arvona tai suhteessa suunnitelmaan, joka syntyy tehtävistä. Negatiivinen lisäys tekee tavoitteesta suunnitelmaa tiukemman.','A goal can be an exact value or relative to the plan built from the tasks. A negative addition makes the goal tighter than the plan.'))+
+    F(tr('Aikataulutavoite','Schedule target'),`<div class="radio"><label><input type="radio" name="wdl" data-w="dlMode" value="abs"${w.dlMode==='abs'?' checked':''}> ${esc(tr('Valmis viimeistään','Finished by'))}</label><input type="date" data-w="dlAbs" value="${esc(w.dlAbs||'')}"></div>
+      <div class="radio"><label><input type="radio" name="wdl" data-w="dlMode" value="rel"${w.dlMode!=='abs'?' checked':''}> ${esc(tr('Suunnitelman loppu +','Plan finish +'))}</label><input type="number" step="1" data-w="dlRel" value="${esc(w.dlRel)}"> ${esc(tr('työpäivää','working days'))}</div>`)+
+    F(tr('Budjettitavoite','Budget target'),`<div class="radio"><label><input type="radio" name="wb" data-w="bMode" value="abs"${w.bMode==='abs'?' checked':''}> ${esc(tr('Enintään','At most'))}</label><input type="number" min="0" step="100" data-w="bAbs" value="${esc(w.bAbs)}"> €</div>
+      <div class="radio"><label><input type="radio" name="wb" data-w="bMode" value="rel"${w.bMode!=='abs'?' checked':''}> ${esc(tr('Suunniteltu kustannus +','Planned cost +'))}</label><input type="number" step="1" data-w="bRel" value="${esc(w.bRel)}"> %</div>`);}
+  else if(s===3){b=q(tr('Ketkä tekevät työn?','Who does the work?'),tr('Kapasiteetti = montako samanlaista henkilöä tai ryhmää on käytettävissä yhtä aikaa. Tunnusta käytetään tehtävien resurssimerkinnöissä (esim. PM:1).','Capacity = how many identical people or crews are available at the same time. The ID is used in the task resource entries (e.g. PM:1).'))+
+    `<div class="scr"><table class="tbl wtbl"><thead><tr><th>${esc(tr('Tunnus','ID'))}</th><th>${esc(tr('Nimi tai rooli','Name or role'))}</th><th>${esc(tr('Kapasiteetti','Capacity'))}</th><th>€/h</th><th></th></tr></thead><tbody>`+
+    w.res.map((r,i)=>`<tr><td class="w-id"><input type="text" data-wr="res" data-i="${i}" data-f="id" value="${esc(r.id)}" aria-label="${esc(tr('Tunnus','ID'))}"></td><td class="w-n"><input type="text" data-wr="res" data-i="${i}" data-f="name" value="${esc(r.name)}" aria-label="${esc(tr('Nimi','Name'))}"></td>
+      <td class="w-num"><input type="number" min="0.5" step="0.5" data-wr="res" data-i="${i}" data-f="cap" value="${esc(r.cap)}" aria-label="${esc(tr('Kapasiteetti','Capacity'))}"></td><td class="w-num"><input type="number" min="0" step="1" data-wr="res" data-i="${i}" data-f="rate" value="${esc(r.rate)}" aria-label="€/h"></td>
+      <td class="w-b"><button class="btn" type="button" data-wdel="res" data-i="${i}" aria-label="${esc(tr('Poista','Delete'))}">✕</button></td></tr>`).join('')+
+    `</tbody></table></div><div class="acts" style="margin-top:8px"><button class="btn" type="button" data-wadd="res">${esc(tr('+ Lisää resurssi','+ Add resource'))}</button></div>`;}
+  else if(s===4){const ids=w.res.map(r=>up(r.id)).filter(Boolean).join(', ')||'–';
+    b=q(tr('Mistä tehtävistä projekti koostuu?','Which tasks make up the project?'),
+      tr(`Kesto M on todennäköisin kesto työpäivinä; kesto 0 on virstanpylväs. O (optimistinen) ja P (pessimistinen) käytetään PERT- ja Monte Carlo -ennusteissa; tyhjänä O = 0,8·M ja P = 1,5·M. Edeltäjät: esim. "A, B AA+2, C LL-1" (LA = lopusta alkuun on oletus). Resurssit: esim. "PM:1, MS:0.5" (desimaalipiste). Käytettävissä: ${ids}.`,
+         `Duration M is the most likely duration in working days; duration 0 is a milestone. O (optimistic) and P (pessimistic) are used in the PERT and Monte Carlo forecasts; when empty O = 0.8·M and P = 1.5·M. Predecessors: e.g. "A, B SS+2, C FF-1" (FS is the default). Resources: e.g. "PM:1, MS:0.5". Available: ${ids}.`))+
+    `<div class="scr"><table class="tbl wtbl"><thead><tr><th>${esc(tr('Tunnus','ID'))}</th><th>${esc(tr('Tehtävä','Task'))}</th><th>M (${esc(tr('pv','d'))})</th><th>O</th><th>P</th><th>${esc(tr('Edeltäjät','Predecessors'))}</th><th>${esc(tr('Resurssit','Resources'))}</th><th>${esc(tr('Kiinteä €','Fixed €'))}</th><th></th></tr></thead><tbody>`+
+    w.tasks.map((t,i)=>{const f=(k,cls,type,extra)=>`<td class="${cls}"><input type="${type}" data-wr="tasks" data-i="${i}" data-f="${k}" value="${esc(t[k]??'')}" ${extra||''} aria-label="${esc(k)} ${i+1}"></td>`;
+      return `<tr>${f('id','w-id','text')}${f('name','w-n','text')}${f('d','w-num','number','min="0" step="1"')}${f('o','w-num','number','min="0" step="1" placeholder="'+nf(Math.round((num(t.d)||0)*0.8),0)+'"')}${f('p','w-num','number','min="0" step="1" placeholder="'+nf(Math.round((num(t.d)||0)*1.5),0)+'"')}${f('pred','w-pred','text','spellcheck="false" autocomplete="off"')}${f('res','w-res','text','spellcheck="false" autocomplete="off"')}${f('fix','w-fix','number','min="0" step="100"')}
+      <td class="w-b"><button class="btn" type="button" data-wmv="-1" data-i="${i}" aria-label="${esc(tr('Ylös','Up'))}"${i?'':' disabled'}>↑</button> <button class="btn" type="button" data-wmv="1" data-i="${i}" aria-label="${esc(tr('Alas','Down'))}"${i<w.tasks.length-1?'':' disabled'}>↓</button> <button class="btn" type="button" data-wdel="tasks" data-i="${i}" aria-label="${esc(tr('Poista','Delete'))}">✕</button></td></tr>`;}).join('')+
+    `</tbody></table></div><div class="acts" style="margin-top:8px"><button class="btn" type="button" data-wadd="tasks">${esc(tr('+ Lisää tehtävä','+ Add task'))}</button></div>`;}
+  else{const k=wCheck(w);b=q(tr('Tarkista projekti ja luo se','Check the project and create it'),'');
+    if(k.errs.length)b+=`<div class="werr"><b>${esc(tr('Korjaa nämä ennen luontia:','Fix these before creating:'))}</b><ul>${k.errs.map(e=>`<li>${esc(e)}</li>`).join('')}</ul></div>`;
+    else{const st=k.st,c=k.c,dl=dlIdx(st),lo=loads(st,c);
+      b+=`<table class="res" style="max-width:640px">`+[[tr('Tehtäviä / resursseja','Tasks / resources'),`${st.tasks.length} / ${st.res.length}`],
+        [tr('Kesto','Duration'),`${nf(c.fin,0)} ${tr('työpv','w.d.')}`],[tr('Alku','Start'),fD(startDate(st,0),'l')],[tr('Suunniteltu valmistuminen','Planned finish'),fD(endDate(st,c.fin),'l')],
+        [tr('Aikataulutavoite','Schedule target'),`${fD(endDate(st,dl),'l')} <span class="${c.fin<=dl?'good':'bad'}">(${c.fin<=dl?tr('pelivaraa ','margin ')+nf(dl-c.fin,0):tr('suunnitelma myöhässä ','plan late by ')+nf(c.fin-dl,0)} ${tr('työpv','w.d.')})</span>`],
+        [tr('Suunniteltu kustannus (BAC)','Planned cost (BAC)'),eur(c.total)],[tr('Budjettitavoite','Budget target'),`${eur(st.budget)} <span class="${c.total<=st.budget?'good':'bad'}">(${c.total<=st.budget?tr('alittuu','under'):tr('ylittyy','over')})</span>`],
+        [tr('Kriittinen ketju','Critical chain'),esc(c.chain.map(i=>st.tasks[i].id).join(' → '))],[tr('Ylikuormitettuja resurssipäiviä','Over-allocated resource days'),`<span class="${lo.overDays?'bad':'good'}">${lo.overDays}</span>`]]
+        .map(r=>`<tr><td>${esc(r[0])}</td><td>${r[1]}</td></tr>`).join('')+`</table>`;
+      const sc=k.def.scen,dv=Object.keys(sc.dev);
+      b+=`<div class="werr info">${esc(tr(`Harjoitukset muodostetaan automaattisesti. Seurantatilanne: tilannepäivä ${sc.st} työpv${dv.length?', poikkeamat tehtävissä '+dv.join(', '):''}.`,`Exercises are generated automatically. Tracking situation: status date ${sc.st} w.d.${dv.length?', deviations in tasks '+dv.join(', '):''}.`))}</div>`;}
+    if(k.warns.length)b+=`<div class="werr info"><b>${esc(tr('Huomioita:','Notes:'))}</b><ul>${k.warns.map(e=>`<li>${esc(e)}</li>`).join('')}</ul></div>`;
+    W._ok=!k.errs.length;}
+  const steps=WST().map((l,i)=>`<button type="button" data-wgo="${i}" class="${i===s?'on':''}">${i+1}. ${esc(l)}</button>`).join('');
+  $('#mbox').innerHTML=`<h2>${esc(w.editId?tr('Muokkaa omaa projektia','Edit own project'):tr('Projektin luonti','Create a project'))}</h2><div class="wsteps">${steps}</div><div id="wBody">${b}</div>
+    <div class="mrow"><button class="btn" type="button" data-close>${esc(tr('Peruuta','Cancel'))}</button><button class="btn" type="button" id="wPrev"${s?'':' disabled'}>${esc(tr('Edellinen','Previous'))}</button>`+
+    (s<5?`<button class="btn pri" type="button" id="wNext">${esc(tr('Seuraava','Next'))}</button>`:`<button class="btn pri" type="button" id="wCreate"${W._ok?'':' disabled'}>${esc(w.editId?tr('Tallenna muutokset','Save changes'):tr('Luo projekti','Create project'))}</button>`)+`</div>`;}
+$('#mbox').addEventListener('input',e=>{if(!$('#mbox').dataset.wz||!W)return;const el=e.target;
+  if(el.dataset.w){const k=el.dataset.w;if(el.type==='checkbox')W[k]=el.checked;else if(el.type==='radio'){if(el.checked)W[k]=el.value;}else W[k]=el.value;
+    if(k==='dlAbs'&&el.value)W.dlMode='abs';if(k==='dlRel')W.dlMode='rel';if(k==='bAbs'&&el.value!=='')W.bMode='abs';if(k==='bRel')W.bMode='rel';
+    if(/^(dlAbs|dlRel|bAbs|bRel)$/.test(k))$$('#mbox input[type=radio]').forEach(r=>r.checked=W[r.dataset.w]===r.value);}
+  else if(el.dataset.wr){W[el.dataset.wr][+el.dataset.i][el.dataset.f]=el.value;}});
+$('#mbox').addEventListener('change',e=>{if(!$('#mbox').dataset.wz||!W)return;const el=e.target;
+  if(el.dataset.wb){const v=el.value;W=v==='empty'?wEmpty():v==='current'?wFromState(S):wFromEx(exById(v),false);W.base=v;drawWizard();}});
+$('#mbox').addEventListener('click',e=>{if(!$('#mbox').dataset.wz||!W)return;const el=e.target.closest('button');if(!el)return;
+  if(el.dataset.wgo!==undefined){wStep=+el.dataset.wgo;drawWizard();return;}
+  if(el.id==='wPrev'){wStep=Math.max(0,wStep-1);drawWizard();return;}
+  if(el.id==='wNext'){wStep=Math.min(5,wStep+1);drawWizard();return;}
+  if(el.dataset.wadd==='res'){const used=new Set(W.res.map(r=>up(r.id)));let k=W.res.length+1;while(used.has('R'+k))k++;W.res.push({id:'R'+k,name:'',cap:1,rate:60});drawWizard();return;}
+  if(el.dataset.wadd==='tasks'){const used=new Set(W.tasks.map(t=>up(t.id)));let nid='';for(const ch of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ')if(!used.has(ch)){nid=ch;break;}
+    if(!nid){let k=1;while(used.has('T'+k))k++;nid='T'+k;}const prev=W.tasks[W.tasks.length-1];W.tasks.push({id:nid,name:'',d:5,o:'',p:'',pred:prev?up(prev.id):'',res:'',fix:0});drawWizard();
+    const ins=$$('#mbox [data-wr="tasks"][data-f="name"]');if(ins.length)ins[ins.length-1].focus();return;}
+  if(el.dataset.wdel){W[el.dataset.wdel].splice(+el.dataset.i,1);drawWizard();return;}
+  if(el.dataset.wmv){const i=+el.dataset.i,j=i+(+el.dataset.wmv);if(j>=0&&j<W.tasks.length){const t=W.tasks[i];W.tasks[i]=W.tasks[j];W.tasks[j]=t;}drawWizard();return;}
+  if(el.id==='wCreate'){const k=wCheck(W);if(k.errs.length){drawWizard();return;}const def=k.def,ix=CUSTOM.findIndex(x=>x.id===def.id);
+    if(ix>=0)CUSTOM[ix]=def;else CUSTOM.push(def);saveCustom();Object.keys(exAns).forEach(x=>{if(x.startsWith(def.id+':'))delete exAns[x];});
+    closeModal();W=null;change(()=>{S=fromEx(def);selId=S.tasks[0]?.id||null;},true);}});
+
+/* Tiivis tallennusmuoto esimerkkiprojekteille: vain muutokset esimerkkiin nähden (palautelinkin pituusraja).
+   Oma projekti ja rakenteeltaan muutettu esimerkki tallennetaan kokonaan. */
+const STRUCT=t=>JSON.stringify([t.id,t.n,t.d,t.o,t.p,t.pred,t.res,t.fix]);
+function compactState(st){const ex=EX.find(e=>e.id===st.ex);
+  if(ex){const ref=fromEx(ex);
+    if(ref.tasks.length===st.tasks.length&&ref.tasks.every((t,i)=>STRUCT(t)===STRUCT(st.tasks[i]))&&ref.res.length===st.res.length&&ref.res.every((r,i)=>r.id===st.res[i].id)){
+      const o={version:VERSION,ex:st.ex,compact:1};for(const k of['start','week','hol','hpd','deadline','budget','status','auto','eac'])if(JSON.stringify(st[k])!==JSON.stringify(ref[k]))o[k]=st[k];
+      const rs={};st.res.forEach((r,i)=>{if(r.cap!==ref.res[i].cap||r.rate!==ref.res[i].rate)rs[r.id]=[r.cap,r.rate];});if(Object.keys(rs).length)o.res=rs;
+      const dv={};st.tasks.forEach(t=>{const d={};if(t.extra)d.e=t.extra;if(t.slip)d.s=t.slip;if(t.lvl)d.l=t.lvl;if((t.acf??1)!==1)d.a=t.acf;if(t.prog)d.p=t.prog;if(Object.keys(d).length)dv[t.id]=d;});if(Object.keys(dv).length)o.dev=dv;
+      if(JSON.stringify(st.base)!==JSON.stringify(ref.base))o.base=st.base;
+      return o;}}
+  return Object.assign({version:VERSION},st);}
+function expandState(o){if(!o||typeof o!=='object')return null;
+  if(o.compact){const ex=EX.find(e=>e.id===o.ex);if(!ex)return null;const st=fromEx(ex);
+    for(const k of['start','week','hol','hpd','deadline','budget','status','auto','eac'])if(o[k]!==undefined)st[k]=o[k];
+    if(o.res)st.res.forEach(r=>{if(o.res[r.id]){r.cap=+o.res[r.id][0];r.rate=+o.res[r.id][1];}});
+    if(o.dev)st.tasks.forEach(t=>{const d=o.dev[t.id];if(d){t.extra=+d.e||0;t.slip=+d.s||0;t.lvl=+d.l||0;t.acf=d.a!=null?+d.a:1;t.prog=+d.p||0;}});
+    if(o.base)st.base=o.base;return st;}
+  if(!Array.isArray(o.tasks)||!Array.isArray(o.res))return null;const s=JSON.parse(JSON.stringify(o));delete s.version;s.v=1;return s;}
+/* ================= TESTI- JA PALAUTERAJAPINTA (window.PmSim) ================= */
+function setLangApi(l){if(l!=='fi'&&l!=='en')return false;lang=l;try{localStorage.setItem('pmsim-lang',l);}catch(e){}applyLang();CUR=compute(S);renderCtl();render();return true;}
+function schedOf(st){const c=compute(st);return{fin:c.fin,errs:c.errs.slice(),chain:c.chain.map(i=>st.tasks[i].id),total:c.total,
+  tasks:st.tasks.map((t,i)=>({id:t.id,D:c.D[i],ES:c.ES[i],EF:c.EF[i],LS:c.LS[i],LF:c.LF[i],TF:c.TF[i],FF:c.FF[i],crit:c.crit[i],cost:c.cost[i],hours:c.hours[i]}))};}
+window.PmSim={version:VERSION,lang:()=>lang,setLang:setLangApi,
+  setTab:t=>{if(!['gantt','net','res','evm','mc','ex'].includes(t))return false;setTab(t);return true;},
+  mode:()=>tab+':'+S.ex,
+  serialize:()=>JSON.stringify(compactState(S)),
+  load:json=>{try{const s=expandState(typeof json==='string'?JSON.parse(json):json);if(!s)return false;S=s;selId=S.tasks[0]?.id||null;after(true);return true;}catch(e){return false;}},
+  warnings:()=>CUR?CUR.errs.slice():[],
+  state:()=>JSON.parse(JSON.stringify(S)),
+  examples:()=>EX.map(e=>({id:e.id,n:L2(e.n)})),
+  exampleDef:id=>{const e=EX.find(x=>x.id===id);return e?JSON.parse(JSON.stringify(e)):null;},
+  loadExample:id=>{const e=EX.find(x=>x.id===id)||CUSTOM.find(x=>x.id===id);if(!e)return false;S=fromEx(e);selId=S.tasks[0].id;hist=[];after(true);return true;},
+  loadDef:def=>{const d=JSON.parse(JSON.stringify(def));d.custom=true;d.id=d.id||'test';S=fromEx(d);selId=S.tasks[0]?.id||null;after(true);return true;},
+  schedule:()=>schedOf(S),
+  setTask:(id,o)=>{const t=S.tasks.find(k=>k.id===id);if(!t)return false;Object.assign(t,o);after(true);return true;},
+  set:(k,v)=>{if(!['start','week','hol','hpd','deadline','budget','status','auto','eac'].includes(k))return false;S[k]=v;after(true);return true;},
+  saveBaseline:()=>{S.base=snap(S);after();return true;},
+  level:()=>{const lv=level(S);S.tasks.forEach((t,i)=>t.lvl=lv[i]);after();return lv.slice();},
+  clearLevel:()=>{S.tasks.forEach(t=>t.lvl=0);after();return true;},
+  loads:()=>{const lo=loads(S,CUR);const L={};for(const k in lo.L)L[k]=Array.from(lo.L[k]);return{L,over:lo.over,peak:lo.peak,overDays:lo.overDays};},
+  evm:()=>{const E=evm(S,CUR);const o={};for(const k of['BAC','PV','EV','AC','SV','CV','CPI','SPI','ESt','SPIt','IEACt','EAC','ETC','VAC','TCPI','TCPIb'])o[k]=Number.isFinite(E[k])?E[k]:null;return o;},
+  pert:()=>{const P=pert(S,CUR,dlIdx(S));return{Te:P.Te,sd:P.sd,P:P.P,chain:P.rows.map(r=>({id:S.tasks[r.i].id,o:r.o,m:r.m,p:r.p,te:r.te,s:r.s}))};},
+  monteCarlo:N=>{const M=monteCarlo(S,N||2000,dlIdx(S));return{N:M.N,mean:M.mean,p10:M.p10,p50:M.p50,p80:M.p80,p90:M.p90,P:M.P,min:M.s[0],max:M.s[M.N-1],crit:Object.fromEntries(S.tasks.map((t,i)=>[t.id,M.crit[i]]))};},
+  deadlineIdx:()=>dlIdx(S),
+  workday:i=>iso(wdDate(S,i)),idxOfDate:d=>idxOfDate(S,d),holidays:y=>[...holSet(y)].sort(),easter:y=>iso(easter(y)),
+  exercises:()=>buildEx(exById(S.ex)).out.map(o=>({q:o.q,type:o.type,ans:o.ans,tol:o.tol,rtol:o.rtol,scen:!!o.scen})),
+  scenario:id=>{const e=exById(id||S.ex);return JSON.parse(JSON.stringify(e.scen||genScen(e)));},
+  loadScenario:()=>{S=withScen(exById(S.ex));after(true);return true;},
+  openWizard:m=>{openWizard(m||'empty');return true;},
+  wizard:()=>JSON.parse(JSON.stringify(W)),
+  wizardCheck:w=>{const k=wCheck(w||W);return{errs:k.errs,warns:k.warns,fin:k.c?k.c.fin:null,total:k.c?k.c.total:null};},
+  customs:()=>CUSTOM.map(e=>({id:e.id,n:L2(e.n)}))};
+
+/* käynnistys */
+applyLang();CUR=compute(S);selId=S.tasks[0]?.id||null;renderCtl();setTab(['gantt','net','res','evm','mc','ex'].includes(tab)?tab:'gantt');
+{let raf=0;const ro=new ResizeObserver(()=>{if(raf)return;raf=requestAnimationFrame(()=>{raf=0;if(!drag)render();});});ro.observe($('#view'));}
+if(window.matchMedia)matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',render);
+new MutationObserver(render).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+}
+</script>
+<script>
+/* ---------- Palautekanava (SimPalaute) ----------
+ * Yhteinen palautemoduuli SEAMKin opetussimulaattoreille. Juho Pirttilahti, SEAMK 2026, CC BY 4.0.
+ * Lisää yläpalkkiin Palaute-painikkeen. Lomake liittää mukaan simulaattorin version, mallin, kielen,
+ * selaimen, varoitukset ja piirin (Tallenna / lataa -muoto) ja avaa valmiiksi täytetyn GitHub-issuen
+ * repon lomakepohjalla (.github/ISSUE_TEMPLATE/1-fysiikka.yml, 2-virhe.yml, 3-ehdotus.yml).
+ * Ilman GitHub-tiliä: Kopioi raportti tai Lähetä sähköpostilla.
+ * Käyttö: SimPalaute.init({repo:'omistaja/repo', nimi:{fi:'…',en:'…'}, api:()=>window.XxxSim, email:'…'})
+ * Valinnaiset: tekstit:{avain:{fi,en}} korvaa lomakkeen tekstejä, lajit:{fysiikka:{template,prefix}} korvaa lomakepohjan.
+ * api-olion odotetaan tarjoavan: version (arvo tai funktio), lang(), mode(), serialize(), warnings().
+ */
+(function(){
+'use strict';
+const URL_MAX=6000;      // GitHubin issues/new-linkin pituuskatto (varmuusmarginaalilla); pidempi piiri kopioidaan leikepöydälle
+const MAILTO_MAX=1800;   // osa sähköpostiohjelmista katkaisee pidemmät mailto-linkit
+
+const TX={
+  btn:{fi:'Palaute',en:'Feedback'},
+  btnTitle:{fi:'Ilmoita virheestä, fysiikkahavainnosta tai kehitysideasta',en:'Report a bug, a physics observation or an idea'},
+  h:{fi:'Palaute simulaattorista',en:'Simulator feedback'},
+  intro:{fi:'Palaute tallentuu simulaattorin GitHub-repoon issueksi, ja opettaja käy jokaisen läpi korjausehdotuksena.',
+         en:'Feedback is stored as an issue in the simulator\'s GitHub repository, and the teacher reviews each one as a proposed fix.'},
+  type:{fi:'Palautteen tyyppi',en:'Feedback type'},
+  t_fysiikka:{fi:'Fysiikka ei vastaa odotusta',en:'Physics does not match expectation'},
+  t_virhe:{fi:'Virhe käyttöliittymässä tai toiminnossa',en:'Bug in the interface or a function'},
+  t_ehdotus:{fi:'Kehitysehdotus',en:'Improvement idea'},
+  title:{fi:'Otsikko',en:'Title'},
+  titlePh:{fi:'Lyhyt kuvaus yhdellä rivillä',en:'Short one-line summary'},
+  a_fysiikka:{fi:'Ilmiö ja tilanne: mitä teit ja mitä tapahtui?',en:'Phenomenon and situation: what did you do and what happened?'},
+  a_virhe:{fi:'Mitä tapahtui?',en:'What happened?'},
+  a_ehdotus:{fi:'Mikä on tarve? Mitä opiskelija tai opettaja ei nyt pysty tekemään?',en:'What is the need? What can a student or teacher not do now?'},
+  b_fysiikka:{fi:'Odotettu tulos ja perustelu (kaava, laskelma, lähde tai mittaus)',en:'Expected result and justification (formula, calculation, source or measurement)'},
+  b_virhe:{fi:'Miten virheen saa toistettua?',en:'How can the bug be reproduced?'},
+  b_ehdotus:{fi:'Ehdotettu ratkaisu (valinnainen)',en:'Proposed solution (optional)'},
+  tunnus:{fi:'Validointitunnus (valinnainen, esim. V05)',en:'Validation ID (optional, e.g. V05)'},
+  piiriH:{fi:'Piiri JSON-muodossa',en:'Piiri JSON-muodossa'},
+  piiri:{fi:'Liitä nykyinen piiri (suositus: virhe voidaan toistaa täsmälleen)',en:'Attach the current circuit (recommended: the issue can be reproduced exactly)'},
+  privacy:{fi:'Issuet ovat julkisia. Älä kirjoita henkilötietoja. GitHubissa avaaminen vaatii GitHub-tilin; ilman tiliä käytä Kopioi raportti- tai sähköpostipainiketta.',
+           en:'Issues are public. Do not include personal data. Opening on GitHub requires a GitHub account; without one, use Copy report or the e-mail button.'},
+  open:{fi:'Avaa GitHubissa',en:'Open on GitHub'},
+  copy:{fi:'Kopioi raportti',en:'Copy report'},
+  mail:{fi:'Lähetä sähköpostilla',en:'Send by e-mail'},
+  cancel:{fi:'Peruuta',en:'Cancel'},
+  req:{fi:'Täytä vähintään kentät: ',en:'Please fill in at least: '},
+  copied:{fi:'Raportti kopioitu leikepöydälle.',en:'Report copied to the clipboard.'},
+  copyFail:{fi:'Kopiointi ei onnistunut. Valitse teksti alta ja kopioi se itse.',en:'Copy failed. Select the text below and copy it yourself.'},
+  opened:{fi:'GitHub avautui uuteen välilehteen. Tarkista kentät ja paina Create / Submit new issue.',en:'GitHub opened in a new tab. Check the fields and press Create / Submit new issue.'},
+  bigCirc:{fi:'Piiri ei mahtunut linkkiin, joten se kopioitiin leikepöydälle. Liitä se GitHubissa kenttään "Piiri JSON-muodossa" (Ctrl+V).',
+           en:'The circuit did not fit in the link, so it was copied to the clipboard. Paste it on GitHub into the field "Piiri JSON-muodossa" (Ctrl+V).'},
+  bigCircPh:{fi:'(Piiri ei mahtunut linkkiin. Se on leikepöydällä: liitä se tähän Ctrl+V.)',en:'(The circuit did not fit in the link. It is on the clipboard: paste it here with Ctrl+V.)'},
+  bigAll:{fi:'Raportti oli liian pitkä linkkiin, joten koko raportti kopioitiin leikepöydälle. Liitä se GitHubin ensimmäiseen kenttään.',
+          en:'The report was too long for the link, so the whole report was copied to the clipboard. Paste it into the first field on GitHub.'},
+  bigAllPh:{fi:'(Raportti on leikepöydällä: liitä se tähän Ctrl+V.)',en:'(The report is on the clipboard: paste it here with Ctrl+V.)'},
+  mailNote:{fi:'Raportti kopioitiin myös leikepöydälle. Jos viestin teksti jäi vajaaksi, liitä raportti viestiin.',en:'The report was also copied to the clipboard. If the message text is incomplete, paste the report into it.'},
+  mailShort:{fi:'Raportti on leikepöydällä: liitä se tähän viestiin (Ctrl+V).',en:'The report is on the clipboard: paste it into this message (Ctrl+V).'}
+};
+// GitHub-lomakepohjat ovat suomeksi; nämä otsikot ja kenttätunnukset vastaavat niitä.
+const KIND={
+  fysiikka:{template:'1-fysiikka.yml',prefix:'[Fysiikka] ',a:'ilmio',b:'odotus',bReq:true,piiri:'piiri'},
+  virhe:{template:'2-virhe.yml',prefix:'[Virhe] ',a:'kuvaus',b:'toisto',bReq:false,piiri:'piiri'},
+  ehdotus:{template:'3-ehdotus.yml',prefix:'[Ehdotus] ',a:'tarve',b:'ratkaisu',bReq:false,piiri:null}
+};
+
+let C=null,root=null,btn=null,els={};
+const L=()=>{try{const l=C.api()&&C.api().lang();return l==='en'?'en':'fi';}catch(e){return 'fi';}};
+const t=k=>TX[k][L()];
+const safe=(f,d)=>{try{const v=f();return v===undefined?d:v;}catch(e){return d;}};
+
+function info(){
+  const a=C.api()||{};
+  const ver=safe(()=>typeof a.version==='function'?a.version():a.version,'?');
+  const w=safe(()=>a.warnings(),[]);
+  return {
+    nimi:C.nimi.fi, ver:String(ver),
+    malli:String(safe(()=>a.mode(),'?')), kieli:L(),
+    ua:navigator.userAgent, nakyma:innerWidth+'×'+innerHeight,
+    varoitukset:Array.isArray(w)&&w.length?w.join(' | '):'ei',
+    piiri:safe(()=>a.serialize(),'')
+  };
+}
+function techBlock(i){
+  return '\n\n---\nTekniset tiedot (liitetty automaattisesti):\n'+
+    '- Simulaattori: '+i.nimi+' '+i.ver+'\n- Malli: '+i.malli+', kieli: '+i.kieli+'\n'+
+    '- Selain: '+i.ua+'\n- Näkymä: '+i.nakyma+'\n- Varoitukset: '+i.varoitukset+'\n- Sivu: '+location.href.split('#')[0];
+}
+function values(){
+  return {kind:root.querySelector('input[name=spl-kind]:checked').value,
+    title:els.title.value.trim(), a:els.a.value.trim(), b:els.b.value.trim(),
+    tunnus:els.tunnus.value.trim(), liitaPiiri:els.piiri.checked};
+}
+function validate(v){
+  const miss=[];
+  if(!v.a)miss.push(TX['a_'+v.kind][L()]);
+  if(KIND[v.kind].bReq&&!v.b)miss.push(TX['b_'+v.kind][L()]);
+  if(miss.length){status(t('req')+miss.join('; '),true);(!v.a?els.a:els.b).focus();return false;}
+  return true;
+}
+function issueTitle(v){
+  const s=v.title||v.a.split('\n')[0];
+  return KIND[v.kind].prefix+(s.length>90?s.slice(0,87)+'…':s);
+}
+function report(v,i){
+  let r='# '+issueTitle(v)+'\n\nTyyppi: '+TX['t_'+v.kind].fi+'\n';
+  if(v.kind==='fysiikka'&&v.tunnus)r+='Validointitunnus: '+v.tunnus+'\n';
+  r+='\n## '+TX['a_'+v.kind].fi+'\n'+v.a+'\n';
+  if(v.b)r+='\n## '+TX['b_'+v.kind].fi+'\n'+v.b+'\n';
+  r+=techBlock(i).replace(/^\n\n---\n/,'\n');
+  if(v.liitaPiiri&&i.piiri)r+='\n\n## '+TX.piiriH.fi+'\n```json\n'+i.piiri+'\n```\n';
+  return r;
+}
+function buildUrl(fields){
+  const q=Object.entries(fields).filter(([,x])=>x!=null&&x!=='').map(([n,x])=>encodeURIComponent(n)+'='+encodeURIComponent(x)).join('&');
+  return 'https://github.com/'+C.repo+'/issues/new?'+q;
+}
+/* Palauttaa {url, clip, note}: clip = leikepöydälle kopioitava teksti, jos jotain ei mahtunut linkkiin. */
+function issueLink(v,i){
+  const k=KIND[v.kind],tech=techBlock(i);
+  const f={template:k.template,title:issueTitle(v)};
+  f[k.a]=v.a+tech; if(v.b)f[k.b]=v.b;
+  if(v.kind==='fysiikka'&&v.tunnus)f.tunnus=v.tunnus;
+  if(v.kind==='virhe')f.selain=i.ua+' · '+i.nimi+' '+i.ver;
+  const circ=v.liitaPiiri&&k.piiri&&i.piiri?i.piiri:'';
+  if(circ)f[k.piiri]=circ;
+  let url=buildUrl(f);
+  if(url.length<=URL_MAX)return {url,clip:null,note:null};
+  if(circ){f[k.piiri]=TX.bigCircPh.fi;url=buildUrl(f);if(url.length<=URL_MAX)return {url,clip:circ,note:t('bigCirc')};}
+  const g={template:k.template,title:issueTitle(v)};g[k.a]=TX.bigAllPh.fi;
+  return {url:buildUrl(g),clip:report(v,i),note:t('bigAll')};
+}
+function copyText(s){
+  // Kutsutaan klikkauksen käsittelijästä, jotta selain sallii leikepöydän käytön.
+  const fallback=()=>{const ta=document.createElement('textarea');ta.value=s;ta.setAttribute('readonly','');
+    ta.style.cssText='position:fixed;left:-9999px;top:0';document.body.appendChild(ta);ta.select();
+    let ok=false;try{ok=document.execCommand('copy');}catch(e){}ta.remove();return ok;};
+  if(navigator.clipboard&&window.isSecureContext){
+    return navigator.clipboard.writeText(s).then(()=>true,()=>fallback());
+  }
+  return Promise.resolve(fallback());
+}
+function status(msg,err,manual){
+  els.status.textContent=msg;els.status.style.color=err?'var(--warn,#C0392B)':'';
+  els.manual.hidden=!manual;if(manual){els.manual.value=manual;}
+}
+function onOpenGithub(){
+  const v=values();if(!validate(v))return;
+  const i=info(),r=issueLink(v,i);
+  if(r.clip)copyText(r.clip).then(ok=>{if(!ok)status(r.note+' '+t('copyFail'),true,r.clip);});
+  window.open(r.url,'_blank','noopener');
+  // noopener-ikkunalla window.open palauttaa usein null myös onnistuessaan, joten estoa ei voi luotettavasti tunnistaa.
+  status((r.note?r.note+' ':'')+t('opened'));
+  els.link.href=r.url;els.link.hidden=false;
+  root.dataset.lastUrl=r.url; // testejä varten
+}
+function onCopy(){
+  const v=values();if(!validate(v))return;
+  const r=report(v,info());
+  copyText(r).then(ok=>ok?status(t('copied')):status(t('copyFail'),true,r));
+}
+function onMail(){
+  const v=values();if(!validate(v))return;
+  const r=report(v,info());
+  copyText(r);
+  const subj=encodeURIComponent(C.nimi.fi+': '+issueTitle(v));
+  let body=encodeURIComponent(r);
+  if(body.length>MAILTO_MAX)body=encodeURIComponent(t('mailShort'));
+  root.dataset.lastMail='mailto:'+C.email+'?subject='+subj+'&body='+body;
+  location.href=root.dataset.lastMail;
+  status(t('mailNote'));
+}
+function relabel(){
+  if(!root)return;
+  const l=L();
+  root.querySelectorAll('[data-spl]').forEach(el=>{const k=el.dataset.spl;el.textContent=TX[k][l];});
+  root.querySelectorAll('[data-spl-ph]').forEach(el=>{el.placeholder=TX[el.dataset.splPh][l];});
+  const kind=root.querySelector('input[name=spl-kind]:checked').value;
+  els.aLbl.textContent=TX['a_'+kind][l];els.bLbl.textContent=TX['b_'+kind][l];
+  els.tunnusRow.hidden=kind!=='fysiikka';
+  els.piiriRow.hidden=!KIND[kind].piiri;
+  root.querySelector('.mbox').setAttribute('aria-label',TX.h[l]);
+}
+function open(){relabel();status('');els.link.hidden=true;root.classList.add('open');els.title.focus();}
+function close(){root.classList.remove('open');btn.focus();}
+
+function build(){
+  btn=document.createElement('button');
+  btn.type='button';btn.className='btn';btn.id='palauteBtn';
+  btn.dataset.en=TX.btn.en;btn.dataset.fi=TX.btn.fi;btn.dataset.enTitle=TX.btnTitle.en;btn.dataset.fiTitle=TX.btnTitle.fi;
+  btn.textContent=t('btn');btn.title=t('btnTitle');
+  btn.addEventListener('click',open);
+  const grps=document.querySelectorAll(C.paikka+' .grp');
+  (grps.length?grps[grps.length-1]:document.querySelector(C.paikka)||document.body).appendChild(btn);
+
+  root=document.createElement('div');
+  root.className='modal';root.id='palauteModal';
+  root.innerHTML=
+   '<div class="mbox" role="dialog" aria-modal="true" style="max-width:640px">'+
+    '<h2 data-spl="h"></h2><p data-spl="intro"></p>'+
+    '<fieldset style="border:0;padding:0;margin:8px 0"><legend style="font-weight:600;margin-bottom:4px" data-spl="type"></legend>'+
+     ['fysiikka','virhe','ehdotus'].map((k,n)=>'<label style="display:block;margin:2px 0"><input type="radio" name="spl-kind" value="'+k+'"'+(n===1?' checked':'')+'> <span data-spl="t_'+k+'"></span></label>').join('')+
+    '</fieldset>'+
+    '<label style="display:block;font-weight:600;margin-top:8px"><span data-spl="title"></span><input id="splTitle" type="text" maxlength="120" data-spl-ph="titlePh" style="display:block;width:100%;box-sizing:border-box;margin-top:3px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink);font:inherit;font-weight:400"></label>'+
+    '<label style="display:block;font-weight:600;margin-top:8px"><span id="splALbl"></span><textarea id="splA" style="height:90px;font-family:inherit;font-size:14px;margin-top:3px;box-sizing:border-box"></textarea></label>'+
+    '<label style="display:block;font-weight:600;margin-top:8px"><span id="splBLbl"></span><textarea id="splB" style="height:80px;font-family:inherit;font-size:14px;margin-top:3px;box-sizing:border-box"></textarea></label>'+
+    '<label id="splTunnusRow" style="display:block;font-weight:600;margin-top:8px"><span data-spl="tunnus"></span><input id="splTunnus" type="text" maxlength="20" style="display:block;width:10em;margin-top:3px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink);font:inherit;font-weight:400"></label>'+
+    '<label id="splPiiriRow" style="display:block;margin-top:10px"><input id="splPiiri" type="checkbox" checked> <span data-spl="piiri"></span></label>'+
+    '<p class="mnote" data-spl="privacy" style="margin-top:10px"></p>'+
+    '<p id="splStatus" role="status" aria-live="polite" style="min-height:1.2em;margin:6px 0 0;font-size:14px"></p>'+
+    '<a id="splLink" target="_blank" rel="noopener" hidden style="font-size:13px;word-break:break-all">GitHub</a>'+
+    '<textarea id="splManual" readonly hidden style="height:120px"></textarea>'+
+    '<div class="mrow">'+
+     '<button type="button" class="btn pri" id="splOpen" data-spl="open" style="min-width:0"></button>'+
+     '<button type="button" class="btn" id="splCopy" data-spl="copy"></button>'+
+     (C.email?'<button type="button" class="btn" id="splMail" data-spl="mail"></button>':'')+
+     '<button type="button" class="btn" id="splCancel" data-spl="cancel"></button>'+
+    '</div></div>';
+  document.body.appendChild(root);
+  const $=s=>root.querySelector(s);
+  els={title:$('#splTitle'),a:$('#splA'),b:$('#splB'),aLbl:$('#splALbl'),bLbl:$('#splBLbl'),
+       tunnus:$('#splTunnus'),tunnusRow:$('#splTunnusRow'),piiri:$('#splPiiri'),piiriRow:$('#splPiiriRow'),
+       status:$('#splStatus'),link:$('#splLink'),manual:$('#splManual')};
+  root.querySelectorAll('input[name=spl-kind]').forEach(r=>r.addEventListener('change',relabel));
+  $('#splOpen').addEventListener('click',onOpenGithub);
+  $('#splCopy').addEventListener('click',onCopy);
+  if(C.email)$('#splMail').addEventListener('click',onMail);
+  $('#splCancel').addEventListener('click',close);
+  root.addEventListener('pointerdown',e=>{if(e.target===root)close();});
+  // Estetään simulaattorin pikanäppäimet (Delete, R, Ctrl+Z …) lomakkeen ollessa auki.
+  window.addEventListener('keydown',e=>{
+    if(!root.classList.contains('open'))return;
+    e.stopPropagation();
+    if(e.key==='Escape'){e.preventDefault();close();}
+  },true);
+  // Kielen vaihto kesken lomakkeen: päivitetään tekstit (simulaattori vaihtaa kielen samassa klikkauksessa).
+  document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('[data-lang]'))setTimeout(relabel,0);});
+}
+
+window.SimPalaute={
+  init(cfg){
+    if(C)return;
+    if(!cfg||!cfg.repo||!cfg.api||!cfg.nimi)throw new Error('SimPalaute.init: repo, nimi ja api vaaditaan');
+    C=Object.assign({paikka:'header.bar',email:''},cfg);
+    // Simulaattorikohtaiset tekstit ja lomakepohjat (esim. automaatiosimulaattorin 1-toiminta.yml).
+    if(cfg.tekstit)for(const k in cfg.tekstit)TX[k]=Object.assign({},TX[k],cfg.tekstit[k]);
+    if(cfg.lajit)for(const k in cfg.lajit)KIND[k]=Object.assign({},KIND[k],cfg.lajit[k]);
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',build);else build();
+  },
+  open:()=>open(),
+  // Testirajapinta: rakentaa linkin ja raportin lomakkeen nykyisistä arvoista avaamatta mitään.
+  _preview:()=>{const v=values(),i=info();return {link:issueLink(v,i),report:report(v,i),valid:!!v.a&&(!KIND[v.kind].bReq||!!v.b)};},
+  _limits:{URL_MAX,MAILTO_MAX}
+};
+})();
+SimPalaute.init({repo:'Jipirtti/Projektinhallintasimulaattori',nimi:{fi:'Projektinhallintasimulaattori',en:'Project Management Simulator'},api:()=>window.PmSim,email:'juho.pirttilahti@seamk.fi',
+  tekstit:{btnTitle:{fi:'Ilmoita virheestä, laskentahavainnosta tai kehitysideasta',en:'Report a bug, a calculation observation or an idea'},
+    t_fysiikka:{fi:'Laskentatulos ei vastaa odotusta',en:'Calculation result does not match expectation'},
+    a_fysiikka:{fi:'Tilanne ja tulos: mikä projekti, mitkä muutokset ja mitä simulaattori näytti?',en:'Situation and result: which project, which changes, and what did the simulator show?'},
+    b_fysiikka:{fi:'Odotettu tulos ja perustelu (kaava, käsinlasku tai lähde)',en:'Expected result and justification (formula, hand calculation or source)'},
+    tunnus:{fi:'Validointitunnus (valinnainen, esim. V03)',en:'Validation ID (optional, e.g. V03)'},
+    piiri:{fi:'Liitä nykyinen projekti (suositus: tilanne voidaan toistaa täsmälleen)',en:'Attach the current project (recommended: the situation can be reproduced exactly)'},
+    piiriH:{fi:'Projekti JSON-muodossa',en:'Projekti JSON-muodossa'},
+    bigCirc:{fi:'Projekti ei mahtunut linkkiin, joten se kopioitiin leikepöydälle. Liitä se GitHubissa kenttään "Projekti JSON-muodossa" (Ctrl+V).',en:'The project did not fit in the link, so it was copied to the clipboard. Paste it on GitHub into the field "Projekti JSON-muodossa" (Ctrl+V).'},
+    bigCircPh:{fi:'(Projekti ei mahtunut linkkiin. Se on leikepöydällä: liitä se tähän Ctrl+V.)',en:'(The project did not fit in the link. It is on the clipboard: paste it here with Ctrl+V.)'}},
+  lajit:{fysiikka:{template:'1-laskenta.yml',prefix:'[Laskenta] '}}});
+</script>
+</body>
+</html>

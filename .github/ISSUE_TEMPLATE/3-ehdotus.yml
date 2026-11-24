@@ -1,0 +1,21 @@
+name: Kehitysehdotus
+description: Uusi ominaisuus, esimerkkiprojekti tai opetuskäyttöä helpottava parannus.
+title: "[Ehdotus] "
+labels: ["ehdotus"]
+body:
+  - type: textarea
+    id: tarve
+    attributes:
+      label: Mikä on tarve?
+      description: Mitä opiskelija tai opettaja ei nyt pysty tekemään?
+    validations:
+      required: true
+  - type: textarea
+    id: ratkaisu
+    attributes:
+      label: Ehdotettu ratkaisu
+  - type: textarea
+    id: toiminta
+    attributes:
+      label: Vaikuttaako ehdotus laskentamalliin?
+      description: Jos kyllä, mitä uusia tuloksia pitäisi validoida (kaava, käsinlasku tai lähde)?

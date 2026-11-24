@@ -1,0 +1,33 @@
+name: Laskentatulos ei vastaa odotusta
+description: Kesto, pelivara, kustannus, ansaittu arvo, ennuste tai muu tulos poikkeaa käsinlaskusta, kaavasta tai lähteestä.
+title: "[Laskenta] "
+labels: ["laskenta", "validointi"]
+body:
+  - type: markdown
+    attributes:
+      value: Kiitos! Laskentahavainnot käsitellään opettajan validoinnissa. Mitä tarkemmin kuvaat laskutavan, sitä nopeammin asia ratkeaa.
+  - type: input
+    id: tunnus
+    attributes:
+      label: Validointitunnus
+      description: Jos havainto liittyy VALIDOINTI.md:n riviin, anna tunnus (esim. V03).
+  - type: textarea
+    id: ilmio
+    attributes:
+      label: Tilanne ja tulos
+      description: Mikä projekti, mitkä muutokset ja mitä simulaattori näytti?
+    validations:
+      required: true
+  - type: textarea
+    id: odotus
+    attributes:
+      label: Odotettu tulos ja perustelu
+      description: Mikä tuloksen pitäisi olla ja miksi (kaava, käsinlasku tai lähde).
+    validations:
+      required: true
+  - type: textarea
+    id: piiri
+    attributes:
+      label: Projekti JSON-muodossa
+      description: Palautelomake liittää projektin automaattisesti. Näin tilanne voidaan toistaa täsmälleen.
+      render: json

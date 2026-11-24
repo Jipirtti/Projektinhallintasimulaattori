@@ -1,0 +1,6 @@
+# Laskentamallia ja validointia koskevat muutokset vaativat vastuuopettajan hyväksynnän.
+# Ota haaran suojauksessa
+# käyttöön "Require review from Code Owners".
+index.html            @Jipirtti
+tests/                @Jipirtti
+VALIDOINTI.md         @Jipirtti
